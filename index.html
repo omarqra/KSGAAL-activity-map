@@ -3,9 +3,60 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>اختبار الكرة الأرضية — MapLibre</title>
-<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;700;900&family=Cairo:wght@500&display=swap" rel="stylesheet">
-<link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet">
+<title>مجمع الملك سلمان العالمي للغة العربية — أنشطة حول العالم</title>
+<meta name="description" content="استكشف أنشطة ومبادرات مجمع الملك سلمان العالمي للغة العربية حول العالم على خريطة تفاعلية تعرض البرامج والفعاليات الدولية لخدمة اللغة العربية.">
+<meta name="theme-color" content="#020810">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://example.com/">
+<link rel="icon" href="public/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" sizes="32x32" href="public/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="public/favicon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="public/favicon-512.png">
+<link rel="apple-touch-icon" sizes="192x192" href="public/favicon-192.png">
+<link rel="manifest" href="site.webmanifest">
+
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="مجمع الملك سلمان العالمي للغة العربية">
+<meta property="og:title" content="مجمع الملك سلمان العالمي للغة العربية — أنشطة حول العالم">
+<meta property="og:description" content="خريطة تفاعلية تعرض أنشطة ومبادرات المجمع حول العالم لخدمة اللغة العربية والناطقين بها.">
+<meta property="og:locale" content="ar_SA">
+<meta property="og:url" content="https://example.com/">
+<meta property="og:image" content="https://example.com/public/logo.png">
+
+<!-- Twitter / X -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="مجمع الملك سلمان العالمي للغة العربية — أنشطة حول العالم">
+<meta name="twitter:description" content="خريطة تفاعلية تعرض أنشطة ومبادرات المجمع حول العالم لخدمة اللغة العربية.">
+<meta name="twitter:image" content="https://example.com/public/logo.png">
+
+<!-- Structured data: Organization + WebSite -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "EducationalOrganization",
+      "name": "مجمع الملك سلمان العالمي للغة العربية",
+      "alternateName": "King Salman Global Academy for Arabic Language",
+      "url": "https://example.com/",
+      "logo": "https://example.com/public/logo.png",
+      "description": "مؤسسة معنية بخدمة اللغة العربية وتعزيز حضورها محلياً ودولياً.",
+      "areaServed": "Worldwide"
+    },
+    {
+      "@type": "WebSite",
+      "name": "مجمع الملك سلمان العالمي للغة العربية",
+      "url": "https://example.com/",
+      "inLanguage": "ar"
+    }
+  ]
+}
+</script>
+
+<link href="public/vendor/fonts/fonts.css" rel="stylesheet">
+<link href="public/vendor/maplibre/maplibre-gl.css" rel="stylesheet">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { background: #000; }
@@ -21,6 +72,17 @@
      The welcome scene renders at z=2 above the map and fades out when we
      enter the globe (via body.globe-mode on the body element). */
   :root { --gold: #c9a84c; --teal: #5ba4a4; --deep: #020810; }
+
+  /* Visually hidden but readable by search engines & screen readers. */
+  .sr-only {
+    position: absolute !important;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
 
   #c {
     position: fixed; inset: 0;
@@ -1174,7 +1236,16 @@
      doesn't hide it) but below the MapLibre map. In globe mode the opaque
      globe on the map covers the letters; the transparent space around the
      globe lets them show through as a cosmic backdrop. -->
-<img class="letters-bg" id="lettersBg" src="public/letters.png" alt="" aria-hidden="true">
+<!-- Indexable semantic content (visible to search engines & assistive tech). -->
+<header class="sr-only">
+  <h1>مجمع الملك سلمان العالمي للغة العربية</h1>
+  <p>
+    خريطة تفاعلية تستعرض أنشطة ومبادرات مجمع الملك سلمان العالمي للغة العربية حول العالم،
+    وتسلط الضوء على البرامج والفعاليات الدولية التي تخدم اللغة العربية والناطقين بها وتعلمها.
+  </p>
+</header>
+
+<img class="letters-bg" id="lettersBg" src="public/letters.png" alt="" aria-hidden="true" width="1920" height="1080" decoding="async">
 
 <!-- ── WELCOME white-flash overlay (mid-transition only) ── -->
 <div id="fl"></div>
@@ -1189,7 +1260,7 @@
     لغة الموقع
   </button>
   <div class="logo-bar">
-    <img src="public/logo.png" alt="مجمع الملك سلمان العالمي للغة العربية" class="logo-img">
+    <img src="public/logo.png" alt="مجمع الملك سلمان العالمي للغة العربية" class="logo-img" width="64" height="64" decoding="async" fetchpriority="high">
   </div>
 </div>
 
@@ -1202,7 +1273,7 @@
 
 <!-- Globe-mode brand logo (top-right, hidden during welcome + activities panel) -->
 <div class="globe-brand" id="globeBrand">
-  <img src="public/logo.png" alt="مجمع الملك سلمان العالمي للغة العربية">
+  <img src="public/logo.png" alt="مجمع الملك سلمان العالمي للغة العربية" width="64" height="64" decoding="async" loading="lazy">
 </div>
 
 <div id="spinInd">● دوران تلقائي</div>
@@ -1326,7 +1397,7 @@
 </button>
 
 <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+<script src="public/vendor/maplibre/maplibre-gl.js"></script>
 <script>
 /* Service Worker: persistent tile cache (Esri imagery + flag CDN).
    Second visit to any area = instant render, even offline. */
@@ -2602,7 +2673,7 @@ function initActivitiesPanel(data) {
     const delay = Math.min(idx * 0.02, 0.4);
     const dateTxt = a.date || 'بدون تاريخ';
     const entityFlag = a.entity.kind === 'country'
-      ? `<img class="flag" src="${flagUrlLocal(a.entity.code)}" alt="" onerror="this.style.display='none'">`
+      ? `<img class="flag" src="${flagUrlLocal(a.entity.code)}" alt="" width="20" height="14" loading="lazy" decoding="async" onerror="this.style.display='none'">`
       : `<span class="entity-dot" style="color:${color}"></span>`;
 
     const subtypeMeta = a.subtype

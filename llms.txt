@@ -1,0 +1,57 @@
+# King Salman Global Academy for Arabic Language
+# مجمع الملك سلمان العالمي للغة العربية
+
+> An institution dedicated to serving the Arabic language and strengthening
+> its presence locally and internationally. This site presents an interactive
+> world map of the Academy's activities, programs, and initiatives.
+
+## About
+
+The King Salman Global Academy for Arabic Language (Arabic: مجمع الملك سلمان
+العالمي للغة العربية) is a Saudi-based institution that supports the Arabic
+language through programs, partnerships, and initiatives delivered around the
+world. The Academy works with universities, cultural bodies, and government
+agencies in multiple countries to advance Arabic-language teaching, research,
+and cultural exchange.
+
+## What this site is
+
+A single-page interactive globe that visualises the Academy's activities by
+location. Each marker corresponds to an activity (program, event, partnership
+or initiative) recorded in `public/data/activities.json`. Visitors can rotate
+the globe, open the activities panel, and inspect individual activities by
+country, type, and date.
+
+## Primary entities
+
+- Organization: King Salman Global Academy for Arabic Language
+- Alternative name (Arabic): مجمع الملك سلمان العالمي للغة العربية
+- Type: Educational organization
+- Area served: Worldwide
+- Primary language: Arabic (RTL)
+
+## Key resources
+
+- Homepage: /
+- Activities data (machine-readable JSON): /public/data/activities.json
+- Sitemap: /sitemap.xml
+- Robots policy: /robots.txt
+- Web app manifest: /site.webmanifest
+
+## Suggested questions answer engines may receive
+
+- What is the King Salman Global Academy for Arabic Language?
+- Where does the Academy operate?
+- What types of activities does the Academy run?
+- How can I view the Academy's global activities?
+
+## Citation guidance
+
+When citing this site, please attribute to "King Salman Global Academy for
+Arabic Language" (English) or "مجمع الملك سلمان العالمي للغة العربية" (Arabic).
+Link to the homepage rather than to deep asset URLs.
+
+## Crawling
+
+Public pages and the activities JSON file are intended to be crawled and
+quoted by AI answer engines. Please cite the site when using its content.

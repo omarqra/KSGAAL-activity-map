@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>وثيقة تهيئة الموقع لمحركات الإجابة (AEO) — مجمع الملك سلمان العالمي للغة العربية</title>
+<style>
+  :root {
+    --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #fff; --panel: #f8fafc;
+    --accent: #0e7490; --gold: #c9a84c;
+    --pass: #15803d; --pass-bg: #dcfce7;
+    --warn: #b45309; --warn-bg: #fef3c7;
+    --na: #475569; --na-bg: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--panel); color: var(--ink); }
+  body { font-family: "Tajawal", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.85; font-size: 15px; }
+  .page { max-width: 880px; margin: 0 auto; background: var(--bg); padding: 48px 56px; box-shadow: 0 0 0 1px var(--line); }
+  h1, h2 { color: var(--ink); line-height: 1.3; margin: 0 0 12px; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 20px; margin-top: 36px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  p, li { color: var(--ink); }
+  ul, ol { padding-right: 22px; padding-left: 0; }
+  li { margin-bottom: 4px; }
+  code, pre { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font-family: "SF Mono", Consolas, Menlo, monospace; direction: ltr; }
+  code { padding: 1px 5px; font-size: 12.5px; display: inline-block; }
+  pre { padding: 12px 16px; overflow-x: auto; font-size: 12px; line-height: 1.55; margin: 10px 0; text-align: left; }
+
+  .cover { border-top: 6px solid var(--accent); padding: 18px 0 28px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .eyebrow { letter-spacing: 2px; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 12px; }
+  .cover h1 { font-size: 32px; }
+  .cover .subtitle { font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 32px;
+    margin-top: 22px; padding: 16px 20px; background: var(--panel);
+    border-right: 4px solid var(--gold); border-radius: 4px;
+  }
+  .meta-grid .label { font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+  .meta-grid .value { font-weight: 700; font-size: 14.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+  th, td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-weight: 700; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--line); }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+  .badge.pass { background: var(--pass-bg); color: var(--pass); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.na   { background: var(--na-bg);   color: var(--na); }
+
+  .panel { border: 1px solid var(--line); border-right: 4px solid var(--accent); border-radius: 6px; padding: 14px 18px; margin: 12px 0; background: #fff; }
+  .panel .ar { direction: rtl; text-align: right; font-size: 16px; }
+  .panel .en { direction: ltr; text-align: left; font-size: 14px; color: var(--muted); margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+
+  .fact-list { border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .fact-list .row { display: grid; grid-template-columns: 200px 1fr; border-bottom: 1px solid var(--line); }
+  .fact-list .row:last-child { border-bottom: 0; }
+  .fact-list .key { background: var(--panel); padding: 10px 12px; font-size: 12px; letter-spacing: 0.6px; color: var(--muted); font-weight: 700; }
+  .fact-list .val { padding: 10px 12px; }
+
+  footer.report-footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    .page { box-shadow: none; padding: 0; max-width: 100%; }
+    h2, table, .panel, pre, .fact-list { page-break-inside: avoid; break-inside: avoid; }
+    .cover { page-break-after: always; break-after: page; }
+  }
+  @media (max-width: 720px) {
+    .page { padding: 24px 18px; }
+    .meta-grid { grid-template-columns: 1fr; }
+    .fact-list .row { grid-template-columns: 1fr; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="cover">
+    <div class="eyebrow">تهيئة محركات الإجابة بالذكاء الاصطناعي</div>
+    <h1>وثيقة AEO للمشروع</h1>
+    <div class="subtitle">مجمع الملك سلمان العالمي للغة العربية — الموقع العام + لوحة التحكم الإدارية</div>
+    <div class="meta-grid">
+      <div><div class="label">المشروع</div><div class="value">المجمع — كرة أرضية + لوحة تحكم</div></div>
+      <div><div class="label">الوثيقة</div><div class="value">موجز AEO</div></div>
+      <div><div class="label">مُعدّ للعميل</div><div class="value">العميل</div></div>
+      <div><div class="label">التاريخ</div><div class="value">4 مايو 2026</div></div>
+      <div><div class="label">اللغات</div><div class="value">العربية + الإنجليزية</div></div>
+      <div><div class="label">المرحلة</div><div class="value">ما قبل الإطلاق</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. عن الوثيقة</h2>
+    <p>
+      تحدّد هذه الوثيقة كيف تصف محركات الإجابة المعتمدة على الذكاء الاصطناعي (ChatGPT، Perplexity، Google AI Overviews، Copilot، Claude، Gemini) — والقرّاء من البشر — حضور المجمع على الإنترنت. تنطبق على الموقع العام بصفحته الواحدة فقط؛ أما لوحة التحكم الإدارية الداخلية فهي خاصة وخارج النطاق.
+    </p>
+  </section>
+
+  <section>
+    <h2>2. بطاقة الكيان</h2>
+    <div class="fact-list">
+      <div class="row"><div class="key">الاسم بالعربية</div><div class="val">مجمع الملك سلمان العالمي للغة العربية</div></div>
+      <div class="row"><div class="key">الاسم بالإنجليزية</div><div class="val">King Salman Global Academy for Arabic Language</div></div>
+      <div class="row"><div class="key">نوع Schema</div><div class="val"><code>EducationalOrganization</code></div></div>
+      <div class="row"><div class="key">الدولة</div><div class="val">المملكة العربية السعودية</div></div>
+      <div class="row"><div class="key">منطقة الخدمة</div><div class="val">حول العالم</div></div>
+      <div class="row"><div class="key">المجال</div><div class="val">اللغة العربية — تعليم وبحث وتبادل ثقافي</div></div>
+      <div class="row"><div class="key">لغة الموقع</div><div class="val">العربية (RTL)</div></div>
+      <div class="row"><div class="key">بيانات الأنشطة</div><div class="val"><code>/public/data/activities.json</code> — تُدار من لوحة التحكم الداخلية للمجمع</div></div>
+      <div class="row"><div class="key">ملف توجيه الذكاء الاصطناعي</div><div class="val"><code>/llms.txt</code></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. الوصف الرسمي</h2>
+    <div class="panel">
+      <div class="ar">مجمع الملك سلمان العالمي للغة العربية مؤسسة سعودية معنية بخدمة اللغة العربية وتعزيز حضورها محلياً ودولياً عبر برامج وشراكات ومبادرات حول العالم.</div>
+      <div class="en">The King Salman Global Academy for Arabic Language is a Saudi institution dedicated to serving the Arabic language and strengthening its presence locally and internationally through programs, partnerships, and initiatives delivered around the world.</div>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. البيانات المنظَّمة المنشورة على الموقع</h2>
+<pre>&lt;script type="application/ld+json"&gt;
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "EducationalOrganization",
+      "name": "مجمع الملك سلمان العالمي للغة العربية",
+      "alternateName": "King Salman Global Academy for Arabic Language",
+      "url": "https://example.com/",
+      "logo": "https://example.com/public/logo.png",
+      "areaServed": "Worldwide"
+    },
+    { "@type": "WebSite", "url": "https://example.com/", "inLanguage": "ar" }
+  ]
+}
+&lt;/script&gt;</pre>
+    <p>يُستبدل العنوان المؤقت بالنطاق الفعلي عند النشر.</p>
+  </section>
+
+  <section>
+    <h2>5. سياسة الزواحف الذكية</h2>
+    <p>الموقع العام يرحّب بالاستشهاد من قبل محركات الإجابة الذكية. أما لوحة التحكم الإدارية الداخلية فمستبعَدة عن طريق المصادقة و <code>X-Robots-Tag: noindex, nofollow</code> وقاعدة <code>Disallow</code> في <code>robots.txt</code>.</p>
+    <table>
+      <thead><tr><th>المحرك</th><th>وكيل المستخدم</th><th>الوصول</th></tr></thead>
+      <tbody>
+        <tr><td>OpenAI — بحث ChatGPT</td><td><code>OAI-SearchBot</code> و <code>ChatGPT-User</code></td><td><span class="badge pass">مسموح</span></td></tr>
+        <tr><td>OpenAI — تدريب النماذج</td><td><code>GPTBot</code></td><td><span class="badge pass">مسموح</span></td></tr>
+        <tr><td>Anthropic Claude</td><td><code>ClaudeBot</code></td><td><span class="badge pass">مسموح</span></td></tr>
+        <tr><td>Google AI Overviews / Gemini</td><td><code>Google-Extended</code></td><td><span class="badge pass">مسموح</span></td></tr>
+        <tr><td>Perplexity</td><td><code>PerplexityBot</code></td><td><span class="badge pass">مسموح</span></td></tr>
+        <tr><td>Microsoft Copilot</td><td><code>Bingbot</code></td><td><span class="badge pass">مسموح</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. إرشادات الاستشهاد</h2>
+    <ul>
+      <li>استخدام الاسم الكامل في أول إشارة، ثم الاسم المختصر بعد ذلك.</li>
+      <li>عرض الاسمَين العربي والإنجليزي مرة واحدة على الأقل عند الإمكان.</li>
+      <li>الإشارة إلى الصفحة الرئيسية بوصفها الرابط الرسمي، وعدم الربط المباشر بالأصول الداخلية.</li>
+      <li>اعتماد الوصف الوارد في القسم 3 حرفياً أو إعادة صياغته بأمانة.</li>
+      <li>أخذ تفاصيل الأنشطة من ملف <code>activities.json</code> الحيّ.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. أسماء يجب تجنّبها</h2>
+    <ul>
+      <li><em>King Salman Arabic Academy</em> — يُسقط كلمة "Global" ويُضعف الدقة.</li>
+      <li><em>Saudi Arabic Language Academy</em> — اسم عام وغير صحيح.</li>
+      <li><em>King Salman Institute</em> — تصنيف خاطئ.</li>
+      <li>أي نقحرة تُغيّر ترتيب الكلمات.</li>
+    </ul>
+  </section>
+
+  <footer class="report-footer">
+    <div>وثيقة AEO للمشروع</div>
+    <div>4 مايو 2026</div>
+  </footer>
+</div>
+</body>
+</html>

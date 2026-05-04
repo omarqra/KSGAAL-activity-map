@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>خطة ضمان الجودة (QA) — مجمع الملك سلمان العالمي للغة العربية</title>
+<style>
+  :root {
+    --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #fff; --panel: #f8fafc;
+    --accent: #047857; --gold: #c9a84c;
+    --pass: #15803d; --pass-bg: #dcfce7;
+    --warn: #b45309; --warn-bg: #fef3c7;
+    --fail: #b91c1c; --fail-bg: #fee2e2;
+    --crit: #7f1d1d; --crit-bg: #fecaca;
+    --na: #475569; --na-bg: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--panel); color: var(--ink); }
+  body { font-family: "Tajawal", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.8; font-size: 15px; }
+  .page { max-width: 880px; margin: 0 auto; background: var(--bg); padding: 48px 56px; box-shadow: 0 0 0 1px var(--line); }
+  h1, h2 { color: var(--ink); line-height: 1.3; margin: 0 0 12px; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 20px; margin-top: 36px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  p, li { color: var(--ink); }
+  ul, ol { padding-right: 22px; padding-left: 0; }
+  li { margin-bottom: 4px; }
+  code { background: var(--panel); border: 1px solid var(--line); padding: 1px 5px; border-radius: 4px; font-size: 12.5px; font-family: "SF Mono", Consolas, Menlo, monospace; direction: ltr; display: inline-block; }
+
+  .cover { border-top: 6px solid var(--accent); padding: 18px 0 28px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .eyebrow { letter-spacing: 2px; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 12px; }
+  .cover h1 { font-size: 32px; }
+  .cover .subtitle { font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 32px;
+    margin-top: 22px; padding: 16px 20px; background: var(--panel);
+    border-right: 4px solid var(--gold); border-radius: 4px;
+  }
+  .meta-grid .label { font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+  .meta-grid .value { font-weight: 700; font-size: 14.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+  th, td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-weight: 700; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--line); }
+  td.tcid { font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 12px; color: var(--accent); white-space: nowrap; font-weight: 700; direction: ltr; text-align: left; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+  .badge.pass { background: var(--pass-bg); color: var(--pass); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.fail { background: var(--fail-bg); color: var(--fail); }
+  .badge.crit { background: var(--crit-bg); color: var(--crit); }
+  .badge.na   { background: var(--na-bg);   color: var(--na); }
+  .badge.high { background: var(--fail-bg); color: var(--fail); }
+  .badge.med  { background: var(--warn-bg); color: var(--warn); }
+  .badge.low  { background: var(--na-bg);   color: var(--na); }
+
+  footer.report-footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+
+  @media print {
+    body { background: #fff; font-size: 11.5pt; }
+    .page { box-shadow: none; padding: 0; max-width: 100%; }
+    h2, table { page-break-inside: avoid; break-inside: avoid; }
+    tr { page-break-inside: avoid; break-inside: avoid; }
+    .cover { page-break-after: always; break-after: page; }
+  }
+  @media (max-width: 720px) {
+    .page { padding: 24px 18px; }
+    .meta-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 24px; }
+    table { font-size: 12.5px; }
+    th, td { padding: 7px 9px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="cover">
+    <div class="eyebrow">خطة ضمان الجودة</div>
+    <h1>خطة QA</h1>
+    <div class="subtitle">مجمع الملك سلمان العالمي للغة العربية — الموقع العام + لوحة التحكم الإدارية</div>
+    <div class="meta-grid">
+      <div><div class="label">المشروع</div><div class="value">المجمع — كرة أرضية + لوحة تحكم</div></div>
+      <div><div class="label">الوثيقة</div><div class="value">خطة QA الإصدار 1</div></div>
+      <div><div class="label">مُعدّ للعميل</div><div class="value">العميل</div></div>
+      <div><div class="label">التاريخ</div><div class="value">4 مايو 2026</div></div>
+      <div><div class="label">المرحلة</div><div class="value"><span class="badge warn">قبل الإطلاق — UAT</span></div></div>
+      <div><div class="label">اللغة</div><div class="value">العربية</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. النطاق</h2>
+    <p>
+      النظام الخاضع للاختبار يتكوَّن من سطحَين: <strong>الموقع العام</strong> (<code>index.html</code> — كرة أرضية تفاعلية لأنشطة المجمع) و <strong>لوحة التحكم الإدارية</strong> التي يُدير بها فريق المجمع بيانات الأنشطة. كلاهما داخل النطاق، إضافة إلى التكامل بينهما والوصولية والأداء والأمان.
+    </p>
+  </section>
+
+  <section>
+    <h2>2. مستويات الخطورة</h2>
+    <table>
+      <thead><tr><th>المستوى</th><th>التعريف</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge crit">حرج</span></td><td>النظام غير قابل للاستخدام، أو فقدان بيانات، أو ثغرة أمنية. يمنع الإطلاق.</td></tr>
+        <tr><td><span class="badge high">مرتفع</span></td><td>ميزة أساسية معطّلة ولا يوجد بديل سهل. يمنع الإطلاق.</td></tr>
+        <tr><td><span class="badge med">متوسط</span></td><td>خلل ظاهري لكن الميزة تعمل.</td></tr>
+        <tr><td><span class="badge low">منخفض</span></td><td>تحسينات شكلية أو لمسات نهائية.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. معايير القبول</h2>
+    <ul>
+      <li>صفر مشكلات مفتوحة من نوع حرج أو مرتفع.</li>
+      <li>Lighthouse للهاتف على الموقع العام: الأداء ≥ 85، الوصولية ≥ 95، SEO ≥ 100.</li>
+      <li>اجتياز مجموعة الاختبار السريع على Chrome و Edge و Firefox و Safari (سطح المكتب والهاتف).</li>
+      <li>اعتماد دورة CRUD كاملة في لوحة التحكم من قِبَل مراجع من المجمع.</li>
+      <li>اجتياز جميع فحوصات الأمان في القسم 7.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. اختبارات الموقع العام</h2>
+    <table>
+      <thead><tr><th>المعرف</th><th>الاختبار</th><th>الخطورة</th></tr></thead>
+      <tbody>
+        <tr><td class="tcid">PUB-01</td><td>تحميل الشاشة الترحيبية دون أخطاء.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">PUB-02</td><td>الضغط على الشعار يدخل وضع الكرة الأرضية بانتقال صحيح.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">PUB-03</td><td>الكرة الأرضية تستجيب للتحريك والتكبير والدوران التلقائي بسلاسة.</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">PUB-04</td><td>علامات الأنشطة تظهر على الإحداثيات الصحيحة.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">PUB-05</td><td>فتح لوحة الأنشطة وتعديل الخريطة وعرض القائمة الكاملة.</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">PUB-06</td><td>التصفية حسب الدولة والنوع تُحدّث القائمة والعلامات.</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">PUB-07</td><td>بطاقة تفاصيل النشاط تعرض العنوان والنوع والدولة والتاريخ والوصف بدقة.</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">PUB-08</td><td>التعامل السلس مع بيانات فارغة أو معطوبة.</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">PUB-09</td><td>إعادة تحميل الصفحة تعود إلى الشاشة الترحيبية بشكل نظيف.</td><td><span class="badge med">متوسط</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>5. اختبارات لوحة التحكم</h2>
+    <table>
+      <thead><tr><th>المعرف</th><th>الاختبار</th><th>الخطورة</th></tr></thead>
+      <tbody>
+        <tr><td class="tcid">ADM-01</td><td>تسجيل الدخول بيانات صحيحة ينجح؛ ملف تعريف الارتباط <code>HttpOnly</code> + <code>Secure</code>.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-02</td><td>رفض البيانات غير الصحيحة وتفعيل تحديد المعدل.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-03</td><td>الطلبات غير المصادَق عليها تُحوّل إلى صفحة الدخول.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-04</td><td>قائمة الأنشطة تعرض جميع السجلات مع الترتيب والبحث.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-05</td><td>إنشاء نشاط جديد (المسار الناجح) يُحفَظ ويظهر على الكرة الأرضية بعد النشر.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-06</td><td>التحقق من الإدخال يرفض الحقول المفقودة والتواريخ والإحداثيات غير الصحيحة على جانبَي العميل والخادم.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-07</td><td>تعديل النشاط يحفظ التغييرات.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-08</td><td>حذف النشاط يزيله من القائمة ومن الموقع العام (مع تأكيد).</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">ADM-09</td><td>التغييرات غير المنشورة لا تظهر للجمهور؛ المنشورة تظهر.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-10</td><td>النصوص العربية / RTL تنتقل بشكل صحيح عبر النموذج.</td><td><span class="badge high">مرتفع</span></td></tr>
+        <tr><td class="tcid">ADM-11</td><td>صلاحيات الأدوار مُطبّقة في الواجهة وفي الـ API.</td><td><span class="badge crit">حرج</span></td></tr>
+        <tr><td class="tcid">ADM-12</td><td>انتهاء الجلسة يُحوّل إلى صفحة الدخول دون فقدان البيانات قيد الإدخال.</td><td><span class="badge high">مرتفع</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. المتصفحات والأجهزة</h2>
+    <table>
+      <thead><tr><th>المنصة</th><th>المتصفحات</th><th>إلزامي</th></tr></thead>
+      <tbody>
+        <tr><td>Windows 11 / macOS</td><td>Chrome و Edge و Firefox و Safari (الأحدث)</td><td><span class="badge pass">نعم</span></td></tr>
+        <tr><td>iOS 17+</td><td>Safari (الأحدث)</td><td><span class="badge pass">نعم</span></td></tr>
+        <tr><td>Android 13+</td><td>Chrome (الأحدث)</td><td><span class="badge pass">نعم</span></td></tr>
+        <tr><td>القياسات</td><td>360 و 768 و 1024 و 1366 و 1920 بكسل</td><td><span class="badge pass">نعم</span></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>7. الأمان والوصولية</h2>
+    <table>
+      <thead><tr><th>المعرف</th><th>الفحص</th></tr></thead>
+      <tbody>
+        <tr><td class="tcid">SEC-01</td><td>HTTPS مُفعَّل؛ ورأس HSTS في الإنتاج.</td></tr>
+        <tr><td class="tcid">SEC-02</td><td>حماية CSRF لكل نقاط الكتابة في لوحة التحكم.</td></tr>
+        <tr><td class="tcid">SEC-03</td><td>تنقية الإدخال — لا توجد ثغرات XSS مخزّنة أو منعكسة.</td></tr>
+        <tr><td class="tcid">SEC-04</td><td>رفع الملفات يتحقق من نوع MIME والامتداد و magic bytes.</td></tr>
+        <tr><td class="tcid">SEC-05</td><td>استبعاد لوحة التحكم من الفهرسة (مصادقة + <code>noindex</code> + <code>Disallow</code>).</td></tr>
+        <tr><td class="tcid">SEC-06</td><td>عدم وجود أي أسرار في حزمة العميل أو في المستودع.</td></tr>
+        <tr><td class="tcid">A11Y-01</td><td>عنوان <code>&lt;h1&gt;</code> واحد، تسلسل عناوين منطقي، وكل العناصر التفاعلية تصل إليها لوحة المفاتيح بتركيز مرئي.</td></tr>
+        <tr><td class="tcid">A11Y-02</td><td>تباين الألوان ≥ 4.5:1؛ يعمل عند تكبير 200%؛ احترام تفضيل تقليل الحركة.</td></tr>
+        <tr><td class="tcid">A11Y-03</td><td>درجة Lighthouse Accessibility ≥ 95 على الصفحة الرئيسية.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <footer class="report-footer">
+    <div>خطة QA الإصدار 1</div>
+    <div>4 مايو 2026</div>
+  </footer>
+</div>
+</body>
+</html>
