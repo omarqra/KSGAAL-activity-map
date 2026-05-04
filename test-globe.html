@@ -1,0 +1,2885 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>اختبار الكرة الأرضية — MapLibre</title>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@200;300;400;700;900&family=Cairo:wght@500&display=swap" rel="stylesheet">
+<link href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { background: #000; }
+  body {
+    width: 100vw; height: 100vh; overflow: hidden;
+    background: var(--deep);
+    font-family: 'Tajawal', 'Segoe UI', Tahoma, sans-serif;
+    user-select: none;
+    color: #fff;
+  }
+
+  /* Stack: welcome canvas #c (2) ← map (1) ← UI (10).
+     The welcome scene renders at z=2 above the map and fades out when we
+     enter the globe (via body.globe-mode on the body element). */
+  :root { --gold: #c9a84c; --teal: #5ba4a4; --deep: #020810; }
+
+  #c {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    /* Stars sit BEHIND the map so MapLibre's globe renders on top; stars
+       stay visible during globe mode as a persistent cosmic backdrop. */
+    z-index: 0; display: block;
+    background: #000;
+    pointer-events: none;
+  }
+
+  #map {
+    position: fixed; inset: 0; z-index: 1;
+    background: transparent;
+    cursor: grab;
+    /* When the activities panel opens we shrink the map's right edge
+       (instead of CSS scale) so the canvas fills the visible area
+       perfectly — no empty bars top/bottom and no panel overlap. */
+    transition: right 0.85s cubic-bezier(.22,1,.36,1),
+                opacity 0.9s ease;
+    opacity: 0; pointer-events: none;
+  }
+  body.globe-mode #map { opacity: 1; pointer-events: auto; }
+  #map.dragging { cursor: grabbing; }
+  /* Reserve room for the panel: 16px panel-margin + panel-width + 16px gap. */
+  @media (min-width: 901px) {
+    body.viewing-activities #map {
+      right: calc(min(460px, 42vw) + 32px);
+    }
+  }
+
+  /* Globe-mode gating for chrome outside the map itself.
+     NOTE: we only toggle visibility via container opacity/pointer-events;
+     the stat-card reveal animation stays driven by .stats-col.ready. */
+  .stats-col, .act-toggle-btn {
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.9s ease;
+  }
+  body.globe-mode .stats-col, body.globe-mode .act-toggle-btn {
+    opacity: 1; pointer-events: auto;
+  }
+  body.globe-mode .stats-col .stat-card { pointer-events: auto; }
+
+  /* #spinInd and the in-globe #backBtn also belong to globe mode */
+  #spinInd { opacity: 0; pointer-events: none; transition: opacity 0.9s ease; }
+  body.globe-mode #spinInd { opacity: 1; pointer-events: auto; }
+
+  /* ── WELCOME: white flash overlay for the mid-transition ── */
+  #fl {
+    position: fixed; inset: 0; z-index: 50;
+    background: radial-gradient(circle, #fff, rgba(200,220,255,.5) 40%, transparent 75%);
+    pointer-events: none; opacity: 0;
+  }
+
+  /* ── WELCOME: header ── */
+  .hdr {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+    display: flex; justify-content: space-between; align-items: flex-start;
+    padding: 22px 32px; pointer-events: none;
+    transition: opacity 0.5s ease;
+  }
+  .hdr > * { pointer-events: auto; }
+
+  .logo-bar {
+    text-align: right;
+    opacity: 0;
+    transform: translateY(-25px);
+    animation: rvl 1.6s cubic-bezier(.22,1,.36,1) .8s forwards;
+  }
+  .logo-img {
+    height: clamp(40px, 5vw, 64px);
+    width: auto;
+    display: block;
+    object-fit: contain;
+  }
+
+  .lbtn {
+    color: rgba(255,255,255,.55); background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08); padding: 9px 20px; border-radius: 36px;
+    font-size: 13px; cursor: pointer; font-family: inherit;
+    display: flex; align-items: center; gap: 9px;
+    opacity: 0; transform: translateY(-25px);
+    animation: rvl 1.6s cubic-bezier(.22,1,.36,1) 1s forwards;
+    transition: all .35s; backdrop-filter: blur(10px);
+  }
+  .lbtn:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes rvl    { to   { opacity: 1; transform: translateY(0); } }
+  @keyframes spin   { to   { transform: rotate(360deg); } }
+
+  /* ── Decorative letters backdrop — sits at the bottom of the stack so the
+     Three.js canvas (welcome stars + logo) and the MapLibre globe both
+     render on top of it. In globe mode this means letters only show in the
+     transparent dark space AROUND the globe, never over it. ── */
+  .letters-bg {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    object-fit: cover;
+    object-position: center;
+    z-index: 0;
+    pointer-events: none;
+    opacity: 0;
+    filter: invert(1) brightness(1.5) blur(0.3px);
+    mix-blend-mode: screen;
+    transform: scale(1.05);
+    animation: lettersIn 2.6s cubic-bezier(.22,1,.36,1) 1.2s forwards;
+    transition: opacity 0.6s ease;
+    user-select: none;
+  }
+  @keyframes lettersIn {
+    to { opacity: 0.5; transform: scale(1); }
+  }
+
+  /* ── WELCOME: click zone over the logo ── */
+  .cz {
+    position: fixed; top: 50%; left: 50%;
+    width: clamp(180px, 28vw, 350px); height: clamp(180px, 28vw, 350px);
+    transform: translate(-50%, -50%); z-index: 20; cursor: pointer; border-radius: 24px;
+  }
+  .cz-hint {
+    position: absolute; bottom: -62px; left: 50%; transform: translateX(-50%);
+    text-align: center; opacity: 0;
+    animation: fadein 1.4s ease-out 3.2s forwards;
+    pointer-events: none;
+  }
+  .cz-hint span {
+    color: rgba(255,255,255,.22); font-size: 11px;
+    letter-spacing: 3px; font-weight: 300; white-space: nowrap;
+  }
+
+  /* ── WELCOME: loader ── */
+  .ld {
+    position: fixed; inset: 0; background: var(--deep); z-index: 999;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column; gap: 18px; transition: opacity 1s;
+  }
+  .ld.go { opacity: 0; pointer-events: none; }
+  .ld-r {
+    width: 40px; height: 40px;
+    border: 1.5px solid rgba(255,255,255,.05);
+    border-top-color: var(--gold);
+    border-radius: 50%; animation: spin 1s linear infinite;
+  }
+  .ld-t { color: rgba(255,255,255,.18); font-size: 11px; letter-spacing: 4px; }
+
+  /* ── WELCOME: fader + trans overlay ── */
+  .page-fader {
+    position: fixed; inset: 0;
+    background: radial-gradient(circle at center, #102243 0%, #000011 80%);
+    z-index: 9999; opacity: 0; pointer-events: none;
+    transition: opacity 0.6s ease;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 18px; color: #4facfe;
+    font-family: inherit; font-size: 1.1rem;
+  }
+  .page-fader.active { opacity: 1; pointer-events: auto; }
+  .page-fader .spinner {
+    width: 42px; height: 42px;
+    border: 3px solid rgba(79,172,254,0.2);
+    border-top-color: #4facfe; border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  #transOverlay {
+    position: fixed; inset: 0; background: #000011;
+    z-index: 9998; opacity: 0; pointer-events: none;
+    transition: opacity 0.7s ease;
+  }
+  #transOverlay.vis { opacity: 1; }
+
+  /* ── WELCOME: back-to-welcome button (bottom-left circle) ──
+     Separate from #backBtn (which handles in-globe pin navigation). */
+  .back-btn {
+    position: fixed; bottom: 24px; left: 24px;
+    width: 48px; height: 48px; border-radius: 50%;
+    background: rgba(10,17,40,0.85);
+    border: 1px solid rgba(255,255,255,0.25);
+    backdrop-filter: blur(8px);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 1.25rem;
+    cursor: pointer; z-index: 61;
+    pointer-events: none;
+    opacity: 0;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s, opacity 0.8s ease;
+  }
+  body.globe-mode .back-btn { pointer-events: auto; opacity: 1; }
+  .back-btn:hover { background: rgba(79,172,254,0.2); border-color: #4facfe; transform: scale(1.1); }
+
+  /* ── GLOBE BRAND — floating logo shown only in globe mode (no background) ── */
+  .globe-brand {
+    position: fixed;
+    top: 22px; left: 28px;
+    z-index: 11;
+    opacity: 0;
+    transform: translateY(-12px);
+    pointer-events: none;
+    transition:
+      opacity 0.9s cubic-bezier(.22,1,.36,1) 0.4s,
+      transform 0.9s cubic-bezier(.22,1,.36,1) 0.4s;
+  }
+  body.globe-mode .globe-brand {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+  }
+  body.viewing-activities .globe-brand {
+    opacity: 0;
+    transform: translateY(-12px);
+    pointer-events: none;
+    transition:
+      opacity 0.4s ease,
+      transform 0.5s cubic-bezier(.22,1,.36,1);
+  }
+  .globe-brand img {
+    height: 70px;
+    width: auto;
+    display: block;
+    object-fit: contain;
+    filter: drop-shadow(0 2px 14px rgba(0,0,0,0.6));
+  }
+
+  @media (max-width: 900px) {
+    .globe-brand { top: 14px; left: 14px; }
+    .globe-brand img { height: 50px; }
+  }
+
+  /* Attribution — subtle */
+  .maplibregl-ctrl-attrib {
+    background: rgba(10,17,40,0.55) !important;
+    color: rgba(255,255,255,0.45) !important;
+    font-size: 10px !important;
+  }
+  .maplibregl-ctrl-attrib a { color: rgba(79,172,254,0.7) !important; }
+
+  /* Pin marker — MapLibre positions the OUTER wrapper via its own transform,
+     and our CSS scales the INNER element. Keeping the two transforms on
+     separate elements is what prevents the pin from drifting while the map
+     is panned/zoomed (otherwise MapLibre's position transform and our scale
+     transform fight over the same element every frame). */
+  :root { --pin-scale-global: 1; }
+  .pin-marker-wrap {
+    width: 34px; height: 39px;
+    cursor: pointer;
+  }
+  .pin-marker {
+    --pin-scale: var(--pin-scale-global, 1);
+    --pin-hover: 1;
+    width: 100%; height: 100%;
+    background-repeat: no-repeat;
+    background-position: center bottom;
+    background-size: contain;
+    transition: transform 0.18s ease, filter 0.18s ease;
+    transform-origin: center bottom;
+    will-change: transform;
+    transform: scale(calc(var(--pin-scale) * var(--pin-hover)));
+  }
+  .pin-marker-wrap:hover .pin-marker { --pin-hover: 1.18; }
+  .pin-marker-wrap.active .pin-marker {
+    --pin-hover: 1.28;
+    filter: drop-shadow(0 0 10px #4facfe) drop-shadow(0 0 22px rgba(79,172,254,0.6));
+  }
+
+  /* Back-to-globe button */
+  #backBtn {
+    position: fixed; top: 16px; left: 50%;
+    transform: translateX(-50%) translateY(-60px); z-index: 10;
+    background: rgba(10,17,40,0.92);
+    color: #4facfe;
+    border: 1px solid rgba(79,172,254,0.5);
+    padding: 11px 22px;
+    border-radius: 24px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    backdrop-filter: blur(8px);
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                background 0.2s;
+    direction: rtl;
+  }
+  #backBtn.visible { transform: translateX(-50%) translateY(0); }
+  #backBtn:hover   { background: rgba(79,172,254,0.18); }
+
+  /* Rotate indicator (top-right corner) */
+  #spinInd {
+    position: fixed; top: 16px; right: 70px; z-index: 70;
+    background: rgba(10,17,40,0.8);
+    color: #4ade80;
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    border: 1px solid rgba(74,222,128,0.3);
+    cursor: pointer;
+    user-select: none;
+    direction: rtl;
+  }
+  #spinInd.off { color: rgba(255,255,255,0.4); border-color: rgba(255,255,255,0.1); }
+
+  /* ══════════════════════════════════════════════
+     STAT CARDS — GLASS MINIMAL (refined)
+     Soft glass surface · color-blob accent · ring progress
+  ══════════════════════════════════════════════ */
+  .stats-col {
+    position: fixed; top: 104px; bottom: 84px;
+    width: 248px; z-index: 10;
+    display: flex; flex-direction: column;
+    justify-content: space-between; gap: 12px;
+    pointer-events: none;
+  }
+  .stats-col.right { right: 20px; }
+  .stats-col.left  { left: 20px; }
+  .stats-col .stat-card { pointer-events: auto; }
+
+  /* Card base — uniform glass surface, color comes from accents only */
+  .stat-card {
+    --accent: #4facfe;
+    position: relative;
+    border-radius: 18px;
+    padding: 16px 18px 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    cursor: default;
+    opacity: 0;
+    transform: translateX(var(--dx, 30px));
+    transition:
+      opacity .7s cubic-bezier(.22,1,.36,1),
+      transform .45s cubic-bezier(.22,1,.36,1),
+      border-color .25s ease,
+      box-shadow .25s ease;
+    transition-delay: var(--d, 0s), var(--d, 0s), 0s, 0s;
+    backdrop-filter: blur(22px) saturate(1.4);
+    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    background:
+      linear-gradient(165deg, rgba(20,28,52,0.55) 0%, rgba(8,12,26,0.78) 100%);
+    box-shadow:
+      0 8px 28px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .stats-col.left .stat-card { --dx: -30px; }
+  .stat-card.ready { opacity: 1; transform: translateX(0); }
+  .stat-card:hover {
+    transform: translateX(0) translateY(-3px) !important;
+    border-color: rgba(255,255,255,0.14);
+    box-shadow:
+      0 14px 38px rgba(0,0,0,0.45),
+      0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent),
+      inset 0 1px 0 rgba(255,255,255,0.10);
+  }
+
+  /* Soft accent blob in the top-right corner of each card.
+     Replaces fully-tinted backgrounds — keeps cards consistent
+     while letting color identify the metric. */
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: -50px; right: -50px;
+    width: 160px; height: 160px;
+    border-radius: 50%;
+    background: radial-gradient(circle, var(--accent) 0%, transparent 65%);
+    opacity: .22;
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(8px);
+  }
+
+  /* Color variants — only set the accent color. Everything else
+     reads from --accent so we keep a single source of truth. */
+  .stat-card.v-blue   { --accent: #4facfe; }
+  .stat-card.v-green  { --accent: #4ade80; }
+  .stat-card.v-purple { --accent: #b388ff; }
+  .stat-card.v-orange { --accent: #ff9a44; }
+  .stat-card.v-cyan   { --accent: #00dbde; }
+  .stat-card.v-pink   { --accent: #ff5c8d; }
+  .stat-card.v-gold   { --accent: #ffd700; }
+  .stat-card.v-teal   { --accent: #5ba4a4; }
+
+  /* Underline glow — thinner, more delicate */
+  .stat-card::after {
+    content: ''; position: absolute;
+    bottom: 0; left: 22%; right: 22%; height: 1px; border-radius: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    box-shadow: 0 0 10px var(--accent);
+    opacity: .55;
+    z-index: 1;
+  }
+
+  /* Stack inner content above accent blob */
+  .sc-top, .sc-num-row, .sc-foot { position: relative; z-index: 2; }
+
+  /* Top row: label (right in RTL) + ring with icon */
+  .sc-top {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 10px;
+  }
+  .sc-label {
+    font-size: 11.5px; font-weight: 500;
+    color: rgba(255,255,255,.62);
+    letter-spacing: .2px;
+    line-height: 1.3;
+  }
+
+  /* Circular progress ring + icon centered inside */
+  .sc-ring {
+    position: relative;
+    width: 40px; height: 40px;
+    flex-shrink: 0;
+  }
+  .sc-ring svg {
+    width: 100%; height: 100%;
+    transform: rotate(-90deg);
+    overflow: visible;
+  }
+  .sc-ring-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 2.5;
+  }
+  .sc-ring-fg {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-dasharray: 100;
+    stroke-dashoffset: 100;
+    filter: drop-shadow(0 0 4px color-mix(in srgb, var(--accent) 60%, transparent));
+    transition: stroke-dashoffset 1.4s cubic-bezier(.16,1,.3,1) .3s;
+  }
+  .sc-icon {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--accent);
+  }
+  .sc-icon svg { width: 16px; height: 16px; }
+
+  /* Hero number */
+  .sc-num-row {
+    display: flex; align-items: baseline;
+    gap: 8px; margin-bottom: 12px;
+  }
+  .sc-value {
+    font-size: 38px; font-weight: 800; line-height: 1;
+    font-variant-numeric: tabular-nums; letter-spacing: -1.2px;
+    color: #fff;
+    text-shadow: 0 0 24px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .sc-unit {
+    font-size: 11px; font-weight: 500;
+    color: rgba(255,255,255,.42);
+  }
+
+  /* Footer — single clean row separated by hairline */
+  .sc-foot {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .sc-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,.7);
+  }
+  .sc-badge .badge-arrow {
+    width: 14px; height: 14px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+    font-size: 9px; font-weight: 800;
+    line-height: 1;
+  }
+  .sc-pct {
+    font-size: 11.5px; font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--accent);
+    letter-spacing: .2px;
+  }
+
+  @media (max-width: 900px) { .stats-col { display: none; } }
+
+  /* ══════════════════════════════════════════════
+     ACTIVITIES — TOGGLE BUTTON (glass card, bottom-center)
+  ══════════════════════════════════════════════ */
+  .act-toggle-btn {
+    position: fixed;
+    bottom: 22px; left: 50%;
+    transform: translateX(-50%) translateY(0);
+    z-index: 11;
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 9px 16px 9px 12px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    background:
+      linear-gradient(165deg, rgba(20,28,52,0.55) 0%, rgba(8,12,26,0.78) 100%);
+    backdrop-filter: blur(22px) saturate(1.4);
+    -webkit-backdrop-filter: blur(22px) saturate(1.4);
+    color: #fff;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    cursor: pointer;
+    direction: rtl;
+    isolation: isolate;
+    box-shadow:
+      0 8px 28px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+    transition:
+      transform .4s cubic-bezier(.22,1,.36,1),
+      box-shadow .35s ease,
+      border-color .3s ease,
+      background .3s ease,
+      opacity .35s ease;
+  }
+  /* Soft cyan accent blob — mirrors the stat-card top-corner accent */
+  .act-toggle-btn::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #4facfe 0%, transparent 65%);
+    opacity: .18;
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(8px);
+  }
+  .act-toggle-btn:hover {
+    transform: translateX(-50%) translateY(-3px);
+    border-color: rgba(79,172,254,0.25);
+    box-shadow:
+      0 14px 38px rgba(0,0,0,0.45),
+      0 0 0 1px color-mix(in srgb, #4facfe 25%, transparent),
+      inset 0 1px 0 rgba(255,255,255,0.10);
+  }
+  .act-toggle-btn:active { transform: translateX(-50%) translateY(-1px); }
+  .act-toggle-btn:focus-visible {
+    outline: none;
+    border-color: #4facfe;
+    box-shadow:
+      0 0 0 3px rgba(79,172,254,0.35),
+      0 8px 28px rgba(0,0,0,0.35),
+      inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+
+  /* Slide down out of view when the panel is open */
+  body.viewing-activities .act-toggle-btn {
+    opacity: 0; pointer-events: none;
+    transform: translateX(-50%) translateY(40px);
+  }
+
+  /* Compact rounded cyan-tinted icon — matches stat-card corner radius */
+  .act-toggle-btn .atb-icon {
+    flex-shrink: 0;
+    position: relative; z-index: 1;
+    width: 32px; height: 32px;
+    border-radius: 10px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(79,172,254,0.22), rgba(0,219,222,0.14));
+    border: 1px solid rgba(79,172,254,0.30);
+    color: #4facfe;
+    transition:
+      transform .35s cubic-bezier(.22,1,.36,1),
+      background .3s ease,
+      border-color .3s ease,
+      color .3s ease;
+    animation: atbIconPulse 3.2s ease-in-out infinite;
+  }
+  .act-toggle-btn .atb-icon svg { width: 16px; height: 16px; stroke-width: 2; }
+  .act-toggle-btn:hover .atb-icon {
+    transform: scale(1.08) rotate(-4deg);
+    background: linear-gradient(135deg, rgba(79,172,254,0.34), rgba(0,219,222,0.22));
+    border-color: rgba(79,172,254,0.55);
+    color: #6cc0ff;
+  }
+  @keyframes atbIconPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(79,172,254,0); }
+    50%      { box-shadow: 0 0 0 5px rgba(79,172,254,0.10); }
+  }
+
+  /* Single-line title; subtitle hidden in compact design */
+  .act-toggle-btn .atb-text {
+    display: inline-flex; align-items: center;
+    position: relative; z-index: 1;
+    line-height: 1;
+  }
+  .act-toggle-btn .atb-title {
+    font-size: 13px; font-weight: 700; color: #fff;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
+  }
+  .act-toggle-btn .atb-sub { display: none; }
+
+  /* Trailing chevron (visual left edge in RTL) */
+  .act-toggle-btn .atb-arrow {
+    display: inline-flex; align-items: center; justify-content: center;
+    position: relative; z-index: 1;
+    width: 16px; height: 16px;
+    color: rgba(79,172,254,0.7);
+    transition: transform .3s cubic-bezier(.22,1,.36,1), color .3s ease;
+  }
+  .act-toggle-btn .atb-arrow svg { width: 13px; height: 13px; stroke-width: 2.5; }
+  .act-toggle-btn:hover .atb-arrow {
+    color: #4facfe;
+    transform: translateX(-3px);
+  }
+
+  @media (max-width: 768px) {
+    .act-toggle-btn {
+      bottom: 16px;
+      padding: 8px 14px 8px 10px;
+      gap: 9px;
+    }
+    .act-toggle-btn .atb-icon { width: 30px; height: 30px; border-radius: 9px; }
+    .act-toggle-btn .atb-icon svg { width: 15px; height: 15px; }
+    .act-toggle-btn .atb-title { font-size: 12.5px; }
+    .act-toggle-btn .atb-arrow { width: 14px; height: 14px; }
+    .act-toggle-btn .atb-arrow svg { width: 12px; height: 12px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .act-toggle-btn,
+    .act-toggle-btn .atb-icon { animation: none; }
+  }
+
+  /* When viewing activities panel: hide stats cards so they don't
+     block pin clicks. */
+  body.viewing-activities .stats-col.right {
+    opacity: 0; transform: translateX(40px);
+    transition: opacity .5s ease, transform .6s cubic-bezier(.22,1,.36,1);
+  }
+  body.viewing-activities .stats-col.left {
+    opacity: 0; transform: translateX(-40px);
+    transition: opacity .5s ease, transform .6s cubic-bezier(.22,1,.36,1);
+  }
+  body.viewing-activities .stats-col,
+  body.viewing-activities .stats-col .stat-card {
+    pointer-events: none !important;
+    visibility: hidden;
+    transition: opacity .4s ease, transform .5s cubic-bezier(.22,1,.36,1), visibility 0s linear .45s;
+  }
+
+  .act-panel {
+    position: fixed; top: 16px; right: 16px; bottom: 16px;
+    width: min(460px, 42vw);
+    z-index: 12;
+    background: linear-gradient(165deg, rgba(14,22,44,0.88) 0%, rgba(6,10,24,0.92) 100%);
+    backdrop-filter: blur(24px) saturate(1.2);
+    -webkit-backdrop-filter: blur(24px) saturate(1.2);
+    border: 1px solid rgba(79,172,254,0.18);
+    border-radius: 22px;
+    box-shadow:
+      0 30px 80px rgba(0,0,15,0.7),
+      0 0 0 1px rgba(255,255,255,0.03) inset,
+      0 0 60px rgba(79,172,254,0.08);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    opacity: 0; pointer-events: none;
+    transform: translateX(calc(100% + 32px));
+    transition: transform .85s cubic-bezier(.22,1,.36,1),
+                opacity .55s ease;
+    direction: rtl;
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+  }
+  body.viewing-activities .act-panel {
+    opacity: 1; pointer-events: auto;
+    transform: translateX(0);
+    transition-delay: .1s;
+  }
+  .act-panel::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse 70% 50% at 100% 0%, rgba(79,172,254,0.10), transparent 65%),
+                radial-gradient(ellipse 50% 40% at 0% 100%, rgba(179,136,255,0.06), transparent 70%);
+    pointer-events: none;
+  }
+
+  .ap-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    position: relative; z-index: 2;
+    flex-shrink: 0;
+  }
+  .ap-title { display: flex; align-items: center; gap: 12px; }
+  .ap-title-bar {
+    width: 4px; height: 34px; border-radius: 4px;
+    background: linear-gradient(to bottom, #4facfe, #00dbde);
+    box-shadow: 0 0 14px rgba(79,172,254,0.55);
+  }
+  .ap-title h2 { font-size: 17px; font-weight: 800; color: #fff; letter-spacing: 0.2px; line-height: 1.2; }
+  .ap-title .ap-sub { font-size: 11px; color: rgba(255,255,255,0.38); margin-top: 2px; display: block; letter-spacing: 0.3px; }
+
+  .ap-close {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.6);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-family: inherit;
+    transition: all 0.22s ease;
+  }
+  .ap-close:hover { background: rgba(255,92,141,0.14); border-color: rgba(255,92,141,0.4); color: #ff8fae; transform: rotate(90deg); }
+  .ap-close svg { width: 16px; height: 16px; stroke-width: 2.5; }
+
+  .ap-body {
+    flex: 1; overflow-y: auto; overflow-x: hidden;
+    padding: 18px 22px 22px;
+    position: relative; z-index: 2;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(79,172,254,0.3) transparent;
+  }
+  .ap-body::-webkit-scrollbar { width: 5px; }
+  .ap-body::-webkit-scrollbar-track { background: transparent; }
+  .ap-body::-webkit-scrollbar-thumb { background: rgba(79,172,254,0.25); border-radius: 3px; }
+  .ap-body::-webkit-scrollbar-thumb:hover { background: rgba(79,172,254,0.5); }
+
+  .ap-section { margin-bottom: 18px; }
+  .ap-section:last-child { margin-bottom: 0; }
+  .ap-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 2.5px;
+    color: rgba(255,255,255,0.35); margin-bottom: 10px;
+    text-transform: uppercase; display: flex; align-items: center; gap: 8px;
+  }
+  .ap-section-label::before {
+    content: ''; width: 4px; height: 4px; border-radius: 50%;
+    background: #4facfe; box-shadow: 0 0 6px #4facfe;
+  }
+
+  .ap-search { position: relative; margin-bottom: 18px; }
+  .ap-search input {
+    width: 100%;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff; font-family: inherit; font-size: 13px;
+    padding: 12px 42px 12px 16px;
+    border-radius: 12px;
+    transition: all 0.22s;
+    outline: none;
+  }
+  .ap-search input::placeholder { color: rgba(255,255,255,0.3); }
+  .ap-search input:focus {
+    border-color: rgba(79,172,254,0.45);
+    background: rgba(79,172,254,0.06);
+    box-shadow: 0 0 0 3px rgba(79,172,254,0.1);
+  }
+  .ap-search svg {
+    position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%);
+    width: 16px; height: 16px;
+    color: rgba(255,255,255,0.35);
+    stroke-width: 2;
+  }
+
+  .ap-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ap-chip {
+    padding: 7px 12px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: rgba(255,255,255,0.65);
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    border-radius: 999px; cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex; align-items: center; gap: 6px;
+    white-space: nowrap;
+  }
+  .ap-chip:hover { background: rgba(255,255,255,0.06); color: #fff; border-color: rgba(255,255,255,0.18); }
+  .ap-chip .count {
+    font-size: 10px; font-weight: 700;
+    padding: 1px 6px; border-radius: 999px;
+    background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.55);
+    min-width: 18px; text-align: center;
+  }
+  .ap-chip.active {
+    background: var(--chipActive, rgba(79,172,254,0.18));
+    border-color: var(--chipBorder, rgba(79,172,254,0.55));
+    color: var(--chipColor, #fff);
+    box-shadow: 0 0 18px -4px var(--chipBorder, rgba(79,172,254,0.55));
+  }
+  .ap-chip.active .count { background: rgba(0,0,0,0.25); color: var(--chipColor, #fff); }
+  .ap-chip .swatch {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--sw, currentColor);
+    box-shadow: 0 0 6px var(--sw, currentColor);
+  }
+
+  .ap-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+  .ap-field label {
+    display: block; font-size: 10px; font-weight: 700;
+    letter-spacing: 2px; color: rgba(255,255,255,0.35);
+    margin-bottom: 6px; text-transform: uppercase;
+  }
+  .ap-select { position: relative; }
+  .ap-select select {
+    width: 100%;
+    appearance: none; -webkit-appearance: none;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff; font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 10px 14px 10px 34px;
+    border-radius: 10px;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s;
+    /* Tell the OS to use the dark variant of the native dropdown popup,
+       otherwise Windows/Chromium renders the open list with a white
+       background even though we styled the <option> elements. */
+    color-scheme: dark;
+  }
+  .ap-select select:focus, .ap-select select:hover {
+    border-color: rgba(79,172,254,0.4);
+    background: rgba(79,172,254,0.05);
+  }
+  .ap-select select option { background: #0a1128; color: #fff; }
+  .ap-select select optgroup {
+    background: #0a1128;
+    color: rgba(255,255,255,0.55);
+    font-weight: 700;
+    font-style: normal;
+  }
+  .ap-select::after {
+    content: ''; position: absolute; left: 14px; top: 50%;
+    margin-top: -2px;
+    width: 7px; height: 7px;
+    border-right: 1.5px solid rgba(255,255,255,0.4);
+    border-bottom: 1.5px solid rgba(255,255,255,0.4);
+    transform: rotate(45deg); pointer-events: none;
+  }
+
+  .ap-segment {
+    display: flex; gap: 0;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 10px; padding: 3px;
+  }
+  .ap-segment button {
+    flex: 1; padding: 8px 6px;
+    background: transparent; border: none;
+    color: rgba(255,255,255,0.55); font-family: inherit;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    border-radius: 7px; transition: all 0.2s;
+  }
+  .ap-segment button:hover { color: #fff; }
+  .ap-segment button.active {
+    background: linear-gradient(135deg, rgba(79,172,254,0.22), rgba(0,219,222,0.22));
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(79,172,254,0.2), inset 0 0 0 1px rgba(79,172,254,0.3);
+  }
+
+  .ap-results-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 4px; margin-bottom: 12px;
+    padding-top: 14px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .ap-results-count { font-size: 12px; color: rgba(255,255,255,0.55); font-weight: 600; }
+  .ap-results-count b { color: #4facfe; font-weight: 900; margin-left: 4px; }
+  .ap-reset-btn {
+    background: none; border: none;
+    color: rgba(255,92,141,0.7); font-family: inherit;
+    font-size: 11px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; gap: 4px;
+    padding: 4px 8px; border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .ap-reset-btn:hover { background: rgba(255,92,141,0.1); color: #ff8fae; }
+
+  .ap-group-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 800; color: rgba(255,255,255,0.85);
+    margin: 14px 0 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed rgba(255,255,255,0.08);
+  }
+  .ap-group-title:first-child { margin-top: 0; }
+  .ap-group-title .badge {
+    font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 999px;
+    background: rgba(79,172,254,0.15); color: #4facfe;
+    margin-right: auto;
+  }
+
+  .ap-card {
+    --accent: #4facfe;
+    position: relative;
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--accent) 6%, rgba(255,255,255,0.025)) 0%,
+        rgba(255,255,255,0.018) 60%,
+        rgba(255,255,255,0.01) 100%);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 14px;
+    padding: 14px 18px 13px 18px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    overflow: hidden;
+    isolation: isolate;
+    transition:
+      transform .35s cubic-bezier(.22,1,.36,1),
+      background .3s ease,
+      border-color .3s ease,
+      box-shadow .3s ease;
+    animation: cardIn 0.55s cubic-bezier(.22,1,.36,1) backwards;
+  }
+  /* Right-edge accent stripe (RTL = the visual "leading" edge) */
+  .ap-card::before {
+    content: ''; position: absolute;
+    right: 0; top: 10px; bottom: 10px; width: 3px;
+    border-radius: 3px;
+    background: linear-gradient(to bottom,
+      var(--accent),
+      color-mix(in srgb, var(--accent) 35%, transparent));
+    box-shadow: 0 0 14px color-mix(in srgb, var(--accent) 70%, transparent);
+    transition: width .3s cubic-bezier(.22,1,.36,1);
+  }
+  /* Soft corner glow that "lights up" on hover */
+  .ap-card::after {
+    content: ''; position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    background:
+      radial-gradient(140% 90% at 100% 0%,
+        color-mix(in srgb, var(--accent) 22%, transparent) 0%,
+        transparent 55%),
+      radial-gradient(120% 80% at 0% 100%,
+        color-mix(in srgb, var(--accent) 10%, transparent) 0%,
+        transparent 60%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: -1;
+    transition: opacity .35s ease;
+  }
+  .ap-card:hover {
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--accent) 12%, rgba(255,255,255,0.04)) 0%,
+        rgba(255,255,255,0.025) 60%,
+        rgba(255,255,255,0.012) 100%);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+    transform: translateX(-3px);
+    box-shadow:
+      0 12px 28px -14px color-mix(in srgb, var(--accent) 80%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .ap-card:hover::before { width: 4px; }
+  .ap-card:hover::after { opacity: 1; }
+  .ap-card:active { transform: translateX(-5px) scale(0.995); }
+  .ap-card:focus-visible {
+    outline: none;
+    border-color: color-mix(in srgb, var(--accent) 70%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+  /* "Entity active" — set on every card belonging to the entity whose pin
+     was just clicked. Visually equal to .is-launching (same tint, border,
+     stripe, glow) — the user wants pin clicks to feel just like card
+     clicks in reverse, so the cards must light up with the same intensity.
+     The only thing .is-launching adds on top is the pulse animation,
+     which singles out the one *specifically* clicked card. */
+  .ap-card.entity-active {
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,0.04)) 0%,
+        color-mix(in srgb, var(--accent) 7%, rgba(255,255,255,0.02)) 55%,
+        rgba(255,255,255,0.012) 100%);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    transform: translateX(-3px);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent),
+      0 10px 28px -10px color-mix(in srgb, var(--accent) 50%, transparent);
+  }
+  .ap-card.entity-active::before {
+    width: 5px;
+    background: linear-gradient(to bottom,
+      var(--accent),
+      color-mix(in srgb, var(--accent) 55%, transparent));
+    box-shadow:
+      0 0 16px var(--accent),
+      0 0 30px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  .ap-card.entity-active::after { opacity: 0.85; }
+
+  /* Active/selected card — refined glass surface that reads as "this one"
+     without saturating the user's eyes. Tinted background, glowing accent
+     border + thicker leading stripe, gentle breathing halo. */
+  .ap-card.is-launching {
+    background:
+      linear-gradient(135deg,
+        color-mix(in srgb, var(--accent) 18%, rgba(255,255,255,0.04)) 0%,
+        color-mix(in srgb, var(--accent) 7%, rgba(255,255,255,0.02)) 55%,
+        rgba(255,255,255,0.012) 100%);
+    border-color: color-mix(in srgb, var(--accent) 55%, transparent);
+    transform: translateX(-3px);
+    animation: cardActivePulse 2.6s ease-in-out infinite;
+  }
+  .ap-card.is-launching::before {
+    width: 5px;
+    background: linear-gradient(to bottom,
+      var(--accent),
+      color-mix(in srgb, var(--accent) 55%, transparent));
+    box-shadow:
+      0 0 16px var(--accent),
+      0 0 30px color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  .ap-card.is-launching::after { opacity: 0.85; }
+
+  @keyframes cardActivePulse {
+    0%, 100% {
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent) 32%, transparent),
+        0 10px 28px -10px color-mix(in srgb, var(--accent) 50%, transparent);
+    }
+    50% {
+      box-shadow:
+        0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent),
+        0 14px 38px -8px color-mix(in srgb, var(--accent) 75%, transparent);
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ap-card.is-launching { animation: none; }
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateX(-14px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  /* Card head: type tag + entity tag */
+  .ap-card-head {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 9px;
+  }
+  .ap-type-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 10px 4px 9px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, transparent);
+    letter-spacing: 0.2px;
+    line-height: 1;
+  }
+  .ap-type-tag .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+  }
+  .ap-entity-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.045);
+    color: rgba(255,255,255,0.78);
+    border: 1px solid rgba(255,255,255,0.08);
+    line-height: 1;
+    max-width: 55%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .ap-entity-tag img.flag {
+    width: 16px; height: 11px;
+    border-radius: 2px;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08);
+  }
+  .ap-entity-tag .entity-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+    box-shadow: 0 0 6px currentColor;
+  }
+
+  /* Title */
+  .ap-card-title {
+    font-size: 14px; font-weight: 800; color: #fff;
+    line-height: 1.5;
+    letter-spacing: 0.1px;
+    margin-bottom: 11px;
+  }
+
+  /* Bottom meta row: date / subtype */
+  .ap-card-foot {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    align-items: center;
+    padding-top: 9px;
+    border-top: 1px dashed rgba(255,255,255,0.07);
+  }
+  .ap-meta {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600;
+    color: rgba(255,255,255,0.55);
+  }
+  .ap-meta + .ap-meta {
+    padding-right: 8px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    margin-right: 2px;
+  }
+  .ap-meta svg {
+    width: 11px; height: 11px;
+    stroke-width: 2.4;
+    opacity: 0.7;
+    color: var(--accent);
+  }
+  .ap-meta.subtype { color: rgba(255,255,255,0.72); }
+  .ap-meta.subtype svg { opacity: 0.95; }
+
+  /* Legacy pill kept for any fallback — not used anymore */
+  .ap-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.6);
+    border: 1px solid rgba(255,255,255,0.06);
+  }
+  .ap-pill svg { width: 10px; height: 10px; stroke-width: 2.5; opacity: 0.85; }
+
+  .ap-empty {
+    text-align: center; padding: 40px 20px;
+    color: rgba(255,255,255,0.35);
+  }
+  .ap-empty-icon {
+    width: 52px; height: 52px; margin: 0 auto 12px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.04);
+    display: flex; align-items: center; justify-content: center;
+    color: rgba(255,255,255,0.35);
+  }
+  .ap-empty-icon svg { width: 26px; height: 26px; stroke-width: 1.8; }
+  .ap-empty-t { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.65); }
+  .ap-empty-s { font-size: 12px; margin-top: 4px; }
+
+  @media (max-width: 900px) {
+    .act-panel { width: calc(100vw - 24px); right: 12px; left: 12px; top: 70px; bottom: 90px; }
+    .act-toggle-btn { bottom: 14px; }
+  }
+
+</style>
+</head>
+<body>
+
+<!-- ── WELCOME loader (full-screen, hidden after page load) ── -->
+<div class="ld" id="ld">
+  <div class="ld-r"></div>
+  <div class="ld-t">جارٍ التحميل</div>
+</div>
+
+<!-- ── WELCOME Three.js canvas (stars, logo, orbit rings, meteors) ── -->
+<canvas id="c"></canvas>
+
+<!-- Decorative letters backdrop — sits above the canvas (so its #000 bg
+     doesn't hide it) but below the MapLibre map. In globe mode the opaque
+     globe on the map covers the letters; the transparent space around the
+     globe lets them show through as a cosmic backdrop. -->
+<img class="letters-bg" id="lettersBg" src="public/letters.png" alt="" aria-hidden="true">
+
+<!-- ── WELCOME white-flash overlay (mid-transition only) ── -->
+<div id="fl"></div>
+
+<!-- ── WELCOME header (language button + academy titles) ── -->
+<div class="hdr" id="welcomeHdr">
+  <button class="lbtn">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+    </svg>
+    لغة الموقع
+  </button>
+  <div class="logo-bar">
+    <img src="public/logo.png" alt="مجمع الملك سلمان العالمي للغة العربية" class="logo-img">
+  </div>
+</div>
+
+<!-- ── WELCOME click zone over the floating logo ── -->
+<div class="cz" id="cz">
+  <div class="cz-hint"><span>انقر للدخول</span></div>
+</div>
+
+<div id="map"></div>
+
+<!-- Globe-mode brand logo (top-right, hidden during welcome + activities panel) -->
+<div class="globe-brand" id="globeBrand">
+  <img src="public/logo.png" alt="مجمع الملك سلمان العالمي للغة العربية">
+</div>
+
+<div id="spinInd">● دوران تلقائي</div>
+<button id="backBtn" type="button">← العودة للكرة الأرضية</button>
+
+<!-- Stat cards columns -->
+<div class="stats-col right" id="statsRight"></div>
+<div class="stats-col left"  id="statsLeft"></div>
+
+<!-- Activities toggle button (compact glass pill, bottom-right) -->
+<button class="act-toggle-btn" id="activitiesToggleBtn" aria-label="عرض أنشطة المجمع" title="استكشف الأنشطة الدولية">
+  <span class="atb-icon" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5"></rect>
+      <rect x="14" y="3" width="7" height="7" rx="1.5"></rect>
+      <rect x="3" y="14" width="7" height="7" rx="1.5"></rect>
+      <rect x="14" y="14" width="7" height="7" rx="1.5"></rect>
+    </svg>
+  </span>
+  <span class="atb-text">
+    <span class="atb-title">أنشطة المجمع</span>
+  </span>
+  <span class="atb-arrow" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="15 6 9 12 15 18"></polyline>
+    </svg>
+  </span>
+</button>
+
+<!-- Activities panel -->
+<aside class="act-panel" id="activitiesPanel" aria-hidden="true">
+  <header class="ap-head">
+    <div class="ap-title">
+      <span class="ap-title-bar"></span>
+      <div>
+        <h2>أنشطة المجمع</h2>
+        <span class="ap-sub">استكشاف وتصفية كامل الأنشطة الدولية</span>
+      </div>
+    </div>
+    <button class="ap-close" id="activitiesCloseBtn" aria-label="إغلاق">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  </header>
+
+  <div class="ap-body">
+    <div class="ap-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+      <input type="text" id="actSearch" placeholder="ابحث عن نشاط، مؤتمر، اتفاقية..." />
+    </div>
+
+    <div class="ap-section">
+      <div class="ap-section-label">نوع النشاط</div>
+      <div class="ap-chips" id="actTypeChips"></div>
+    </div>
+
+    <div class="ap-section" id="subtypeSection" style="display:none">
+      <div class="ap-section-label">التصنيف الفرعي</div>
+      <div class="ap-chips" id="actSubtypeChips"></div>
+    </div>
+
+    <div class="ap-row">
+      <div class="ap-field">
+        <label>الموقع</label>
+        <div class="ap-select"><select id="actLocationFilter"></select></div>
+      </div>
+      <div class="ap-field">
+        <label>السنة</label>
+        <div class="ap-select"><select id="actYearFilter"></select></div>
+      </div>
+    </div>
+
+    <div class="ap-section">
+      <div class="ap-section-label">طريقة العرض</div>
+      <div class="ap-segment" id="actGroupBy">
+        <button type="button" data-v="none" class="active">بدون تجميع</button>
+        <button type="button" data-v="year">حسب السنة</button>
+        <button type="button" data-v="entity">حسب الجهة</button>
+        <button type="button" data-v="type">حسب النوع</button>
+      </div>
+    </div>
+
+    <div class="ap-results-head">
+      <span class="ap-results-count" id="actResultsCount"><b>0</b>نشاط مطابق</span>
+      <button type="button" class="ap-reset-btn" id="actResetBtn">
+        <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+        </svg>
+        <span>إعادة تعيين</span>
+      </button>
+    </div>
+
+    <div class="ap-list" id="actList"></div>
+  </div>
+</aside>
+
+<!-- Fallback loading indicator (visible only during the warp->globe handoff) -->
+<div id="globeLoading" style="display:none">جارٍ التحميل...</div>
+
+<!-- Page-level fader for mid-transition UI -->
+<div id="fader" class="page-fader">
+  <div class="spinner"></div>
+  <div id="faderText">جارٍ الفتح...</div>
+</div>
+
+<!-- Solid black overlay that briefly covers the hand-off between scenes -->
+<div id="transOverlay"></div>
+
+<!-- Welcome back-button: visible only in globe mode, returns to the welcome scene.
+     Distinct from #backBtn (which handles in-globe pin-return). -->
+<button class="back-btn" id="welcomeBackBtn" title="العودة للشاشة الرئيسية">
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="15 18 9 12 15 6"/>
+  </svg>
+</button>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
+<script>
+/* Service Worker: persistent tile cache (Esri imagery + flag CDN).
+   Second visit to any area = instant render, even offline. */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(err =>
+    console.warn('SW register failed:', err));
+}
+
+/* ============================================================
+   WELCOME SCENE — ported from index.html (lines ~1000–1315).
+   Runs at top-level (not in an IIFE) so enterGlobeState /
+   exitGlobeState can reach iconGrp, orbits, glowSp, iconAlpha.
+============================================================ */
+const startInGlobe = true;       /* skip the welcome scene and open straight on the globe */
+let appState       = 'welcome';
+let globeReady     = false;
+let rafId          = null;
+let iconAlpha      = 0;
+let transT         = 0;
+let transLocked    = false;
+let mx             = 0;
+let my             = 0;
+let ambTimer       = 0;
+
+const W = () => window.innerWidth;
+const H = () => window.innerHeight;
+
+const cvs   = document.getElementById('c');
+/* alpha:true + transparent clear so the canvas shows stars only;
+   everywhere else stays transparent and the MapLibre globe shines through. */
+const R     = new THREE.WebGLRenderer({ canvas: cvs, antialias: true, alpha: true });
+R.setPixelRatio(Math.min(devicePixelRatio, 2));
+R.setSize(W(), H());
+R.setClearColor(0x000000, 0);
+
+const scene = new THREE.Scene();
+/* No scene.background — we want transparency behind the points, not a painted fill */
+const cam = new THREE.PerspectiveCamera(50, W() / H(), 0.1, 3000);
+cam.position.set(0, 0, 5);
+
+/* ── Stars (counts match index.html: 6000 / 2000 / 300) ── */
+function makeStarLayer(count, spread, size, opacity) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi   = Math.acos(2 * Math.random() - 1);
+    const r     = spread * 0.3 + Math.random() * spread * 0.7;
+    pos[i*3]   = Math.sin(phi) * Math.cos(theta) * r;
+    pos[i*3+1] = Math.sin(phi) * Math.sin(theta) * r;
+    pos[i*3+2] = Math.cos(phi) * r;
+    const c = new THREE.Color();
+    const rr = Math.random();
+    if      (rr < 0.03) c.setHSL(0.6,  0.5, 0.85);
+    else if (rr < 0.05) c.setHSL(0.08, 0.6, 0.82);
+    else if (rr < 0.08) c.setHSL(0.55, 0.3, 0.75);
+    else                c.setHSL(0, 0, 0.6 + Math.random() * 0.4);
+    col[i*3] = c.r; col[i*3+1] = c.g; col[i*3+2] = c.b;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.BufferAttribute(col, 3));
+  return new THREE.Points(geo, new THREE.PointsMaterial({
+    size, vertexColors: true, transparent: true, opacity,
+    sizeAttenuation: true, blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+}
+
+const starsF = makeStarLayer(6000, 300, 0.02, 0.5); scene.add(starsF);
+const starsM = makeStarLayer(2000, 150, 0.06, 0.7); scene.add(starsM);
+const starsN = makeStarLayer( 300,  60, 0.12, 0.9); scene.add(starsN);
+
+/* ── Nebulae ── */
+function mkNeb(x, y, z, s, col, op) {
+  const nc = document.createElement('canvas'); nc.width = 256; nc.height = 256;
+  const nx = nc.getContext('2d');
+  const g  = nx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0,   `rgba(${col},${op})`);
+  g.addColorStop(0.4, `rgba(${col},${op * 0.3})`);
+  g.addColorStop(1,   `rgba(${col},0)`);
+  nx.fillStyle = g; nx.fillRect(0, 0, 256, 256);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: new THREE.CanvasTexture(nc),
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  sp.position.set(x, y, z); sp.scale.set(s, s, 1); scene.add(sp);
+}
+mkNeb(-20, 10, -50, 50, '50,25,90',  0.1);
+mkNeb( 25, -8, -60, 40, '25,50,85',  0.08);
+mkNeb(  8, 15, -40, 30, '35,70,70',  0.06);
+
+/* ── Icon group: logo plane + glow sprite + two orbit rings ── */
+const iconGrp = new THREE.Group();
+scene.add(iconGrp);
+
+const iconMesh = new THREE.Mesh(
+  new THREE.PlaneGeometry(2.8, 2.8),
+  new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, opacity: 0 })
+);
+iconGrp.add(iconMesh);
+
+new THREE.TextureLoader().load('/public/Container.png', tex => {
+  tex.colorSpace = THREE.SRGBColorSpace;
+  iconMesh.material.map = tex;
+  iconMesh.material.needsUpdate = true;
+});
+
+/* Glow behind the logo */
+const glowCv  = document.createElement('canvas'); glowCv.width = 256; glowCv.height = 256;
+const glowCtx = glowCv.getContext('2d');
+const glowGrad = glowCtx.createRadialGradient(128, 128, 10, 128, 128, 128);
+glowGrad.addColorStop(0,   'rgba(91,164,164,.18)');
+glowGrad.addColorStop(0.3, 'rgba(201,168,76,.08)');
+glowGrad.addColorStop(0.6, 'rgba(91,164,164,.04)');
+glowGrad.addColorStop(1,   'rgba(0,0,0,0)');
+glowCtx.fillStyle = glowGrad; glowCtx.fillRect(0, 0, 256, 256);
+const glowSp = new THREE.Sprite(new THREE.SpriteMaterial({
+  map: new THREE.CanvasTexture(glowCv),
+  transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0
+}));
+glowSp.scale.set(7, 7, 1); glowSp.position.z = -0.3;
+iconGrp.add(glowSp);
+
+/* Two orbit rings — gold (inner) + teal (outer) */
+const orbits = [];
+[
+  { rad: 2.2,  cnt: 90,  color: 0xc9a84c, op: 0, spd:  0.06, sz: 0.028 },
+  { rad: 3.05, cnt: 120, color: 0x5ba4a4, op: 0, spd: -0.04, sz: 0.020 },
+].forEach(cfg => {
+  const geo = new THREE.BufferGeometry();
+  const p   = new Float32Array(cfg.cnt * 3);
+  for (let i = 0; i < cfg.cnt; i++) {
+    const a = (i / cfg.cnt) * Math.PI * 2;
+    p[i*3] = Math.cos(a) * cfg.rad; p[i*3+1] = Math.sin(a) * cfg.rad; p[i*3+2] = 0;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({
+    size: cfg.sz, color: cfg.color,
+    transparent: true, opacity: cfg.op,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  pts.userData.spd = cfg.spd;
+  iconGrp.add(pts);
+  orbits.push(pts);
+});
+orbits[0].userData.maxOp = 0.30;
+orbits[1].userData.maxOp = 0.15;
+
+/* ── Earth group (for warp-depth during trans_fwd only) ── */
+const earthGrp = new THREE.Group();
+earthGrp.position.set(0, 0, -800);
+scene.add(earthGrp);
+const earthMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(1.3, 96, 96),
+  new THREE.MeshPhongMaterial({ specular: 0x112244, shininess: 18 })
+);
+earthMesh.rotation.y = -0.6; earthGrp.add(earthMesh);
+new THREE.TextureLoader().load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg', tex => {
+  tex.anisotropy = R.capabilities.getMaxAnisotropy();
+  earthMesh.material.map = tex; earthMesh.material.needsUpdate = true;
+});
+new THREE.TextureLoader().load('https://unpkg.com/three-globe/example/img/earth-topology.png', bump => {
+  earthMesh.material.bumpMap = bump; earthMesh.material.bumpScale = 0.05;
+  earthMesh.material.needsUpdate = true;
+});
+earthGrp.add(new THREE.Mesh(new THREE.SphereGeometry(1.38, 64, 64), new THREE.ShaderMaterial({
+  vertexShader:  `varying vec3 vN;void main(){vN=normalize(normalMatrix*normal);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+  fragmentShader:`varying vec3 vN;void main(){float i=pow(.62-dot(vN,vec3(0,0,1)),2.8);gl_FragColor=vec4(.3,.6,1.,1.)*i*.9;}`,
+  blending: THREE.AdditiveBlending, side: THREE.BackSide, transparent: true
+})));
+scene.add(new THREE.AmbientLight(0x334466, 0.5));
+const sunL = new THREE.DirectionalLight(0xffeedd, 1.3);
+sunL.position.set(5, 3, 5); scene.add(sunL);
+
+/* ── Meteor pool ── */
+const meteorPool = [];
+function spawnMeteor(fromBehind) {
+  const seg = 35, len = 4 + Math.random() * 10;
+  const geo = new THREE.BufferGeometry();
+  const pos = [], col = [];
+  for (let i = 0; i <= seg; i++) {
+    const t_ = i / seg; pos.push(0, 0, -t_ * len);
+    const a = Math.pow(1 - t_, 1.5), ty = Math.random();
+    let r, g, b;
+    if      (ty < 0.35) { r = 1;    g = 0.78; b = 0.35; }
+    else if (ty < 0.6)  { r = 0.45; g = 0.85; b = 0.85; }
+    else                { r = 0.95; g = 0.92; b = 1;    }
+    col.push(r * a, g * a, b * a);
+  }
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('color',    new THREE.Float32BufferAttribute(col, 3));
+  const mat = new THREE.LineBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.85,
+    blending: THREE.AdditiveBlending
+  });
+  const line = new THREE.Line(geo, mat);
+  if (fromBehind) {
+    line.position.set((Math.random()-0.5)*18, (Math.random()-0.5)*12, 10 + Math.random()*20);
+    const tgt = new THREE.Vector3((Math.random()-0.5)*6, (Math.random()-0.5)*4, -900);
+    const dir = tgt.clone().sub(line.position).normalize();
+    line.lookAt(line.position.clone().add(dir));
+    line.userData = { dir, speed: 0.8 + Math.random()*2, life: 0, max: 200 };
+  } else {
+    const a1 = Math.random() * Math.PI * 2, a2 = (Math.random()-0.5) * 0.8;
+    const dir = new THREE.Vector3(
+      Math.cos(a1)*Math.cos(a2),
+      Math.sin(a2),
+      Math.sin(a1)*Math.cos(a2)
+    );
+    const d = 25 + Math.random() * 40;
+    line.position.copy(dir.clone().multiplyScalar(-d));
+    line.lookAt(line.position.clone().add(dir));
+    line.userData = { dir, speed: 0.15 + Math.random()*0.4, life: 0, max: 120 + Math.random()*100 };
+    mat.opacity = 0.4 + Math.random() * 0.3;
+  }
+  scene.add(line); meteorPool.push(line);
+}
+
+/* ── Welcome click handler ── */
+const cz = document.getElementById('cz');
+const fl = document.getElementById('fl');
+
+document.addEventListener('mousemove', e => {
+  mx = (e.clientX / W() - 0.5) * 2;
+  my = (e.clientY / H() - 0.5) * 2;
+});
+
+function goForward() {
+  if (appState !== 'welcome' || transLocked) return;
+  appState = 'trans_fwd'; transT = 0;
+  cz.style.display = 'none';
+  for (let i = 0; i < 50; i++) setTimeout(() => spawnMeteor(true), i * 40);
+}
+cz.addEventListener('click', goForward);
+
+/* ── Render loop ── */
+const clk = new THREE.Clock();
+
+function tick() {
+  rafId = requestAnimationFrame(tick);
+  const dt = clk.getDelta(), t = clk.getElapsedTime();
+
+  if (appState === 'welcome') {
+    cam.position.x += (mx * 0.2 - cam.position.x) * 0.03;
+    cam.position.y += (-my * 0.12 - cam.position.y) * 0.03;
+    cam.position.z = 5; cam.lookAt(0, 0, 0);
+
+    const DELAY = 0.05, DUR = 0.25;
+    if (t > DELAY && iconAlpha < 1) {
+      iconAlpha = Math.min((t - DELAY) / DUR, 1);
+      if (iconMesh.material.map) iconMesh.material.opacity = iconAlpha;
+      orbits[0].material.opacity = orbits[0].userData.maxOp * iconAlpha;
+      orbits[1].material.opacity = orbits[1].userData.maxOp * iconAlpha;
+    }
+
+    iconGrp.rotation.y += (mx * 0.06 - iconGrp.rotation.y) * 0.05;
+    iconGrp.rotation.x += (my * 0.04 - iconGrp.rotation.x) * 0.05;
+
+    glowSp.material.opacity = iconAlpha * (0.45 + Math.sin(t * 1.8) * 0.18);
+
+    orbits.forEach(o => o.rotation.z += o.userData.spd * dt);
+
+    ambTimer += dt;
+    if (ambTimer > 3.5 + Math.random() * 4) { ambTimer = 0; spawnMeteor(false); }
+  }
+
+  /* Meteor updates (shared by welcome + trans_fwd) */
+  for (let i = meteorPool.length - 1; i >= 0; i--) {
+    const m = meteorPool[i];
+    m.position.add(m.userData.dir.clone().multiplyScalar(m.userData.speed));
+    m.userData.life++;
+    if (m.userData.life > m.userData.max * 0.8) m.material.opacity *= 0.92;
+    if (m.userData.life > m.userData.max) { scene.remove(m); meteorPool.splice(i, 1); }
+  }
+
+  if (appState === 'trans_fwd') {
+    transT += dt;
+    const dur = 1.2, p = Math.min(transT / dur, 1);
+
+    /* Phase 1 — logo fades + shrinks */
+    if (p < 0.2) {
+      const pp = p / 0.2, ease = 1 - Math.pow(1 - pp, 3);
+      iconGrp.scale.setScalar(1 - ease * 0.3);
+      iconMesh.material.opacity = (1 - ease) * iconAlpha;
+      glowSp.material.opacity   = (1 - ease) * 0.45;
+      orbits.forEach(o => o.material.opacity *= 0.95);
+      cam.position.z = 5 - ease * 5; cam.lookAt(0, 0, -100);
+    }
+    /* Phase 2 — camera warps forward through space */
+    if (p >= 0.2 && p < 0.72) {
+      const pp = (p - 0.2) / 0.52, ease = pp * pp;
+      iconGrp.visible = false;
+      cam.position.z = 0 - ease * 300;
+      cam.position.x = Math.sin(t * 3)   * 0.3 * (1 - pp);
+      cam.position.y = Math.cos(t * 2.5) * 0.2 * (1 - pp);
+      cam.lookAt(cam.position.x, cam.position.y, cam.position.z - 100);
+      cam.rotation.z = (Math.random() - 0.5) * 0.01 * (1 - pp);
+    }
+    /* Phase 3 — white flash, then hand off to the globe */
+    if (p >= 0.72) {
+      const pp = (p - 0.72) / 0.28;
+      cam.position.z = 5; cam.lookAt(0, 0, 0); cam.rotation.z = 0;
+      fl.style.opacity = pp < 0.3
+        ? String((pp / 0.3) * 0.85)
+        : String(0.85 * (1 - (pp - 0.3) / 0.7));
+      if (!transLocked && pp >= 0.3) {
+        transLocked = true;
+        const ov = document.getElementById('transOverlay');
+        ov.style.transition = 'opacity 0.38s ease';
+        ov.classList.add('vis');
+        const doEnter = () => {
+          if (globeReady) enterGlobeState();
+          else {
+            const w = setInterval(() => {
+              if (globeReady) { clearInterval(w); enterGlobeState(); }
+            }, 80);
+            setTimeout(() => { clearInterval(w); enterGlobeState(); }, 8000);
+          }
+        };
+        setTimeout(doEnter, 120);
+      }
+    }
+  }
+
+  starsF.rotation.y += 0.00005;
+  starsM.rotation.y += 0.0001;
+  starsN.rotation.y += 0.0002;
+  starsF.rotation.x += 0.00002;
+  starsN.material.opacity = 0.7 + 0.2 * Math.sin(t * 1.5);
+
+  if (earthGrp.position.z > -700) earthMesh.rotation.y += 0.0008;
+  R.render(scene, cam);
+}
+
+/* ── State transitions ── */
+function enterGlobeState() {
+  if (appState === 'globe') return;
+  appState = 'globe';
+  /* Keep the render loop running so stars keep rotating as a backdrop
+     behind the MapLibre globe. tick() branches on appState to skip
+     welcome/trans_fwd work once we're in 'globe'. */
+
+  /* Hide welcome chrome */
+  const hdr = document.getElementById('welcomeHdr');
+  if (hdr) { hdr.style.opacity = '0'; hdr.style.pointerEvents = 'none'; }
+  fl.style.opacity = '0';
+  iconGrp.visible = false;
+  cz.style.display = 'none';
+  cz.style.pointerEvents = 'none';
+
+  /* Reveal globe chrome via body class (drives CSS fades on #c, #map, stats, etc) */
+  document.body.classList.add('globe-mode');
+
+  setTimeout(animateStats, 300);
+
+  const ov = document.getElementById('transOverlay');
+  ov.style.transition = 'opacity 0.4s ease';
+  setTimeout(() => ov.classList.remove('vis'), 30);
+
+  if (typeof window.setGlobeAutoRotate === 'function') window.setGlobeAutoRotate(true);
+}
+
+function exitGlobeState() {
+  if (appState !== 'globe') return;
+
+  const ov = document.getElementById('transOverlay');
+  ov.style.transition = 'opacity 0.45s ease';
+  ov.classList.add('vis');
+
+  setTimeout(() => {
+    appState = 'welcome'; transLocked = false;
+
+    cam.position.set(0, 0, 5); cam.lookAt(0, 0, 0);
+    earthGrp.position.set(0, 0, -800);
+    fl.style.opacity = '0';
+
+    /* Restore the floating logo to its initial pose */
+    iconGrp.visible = true;
+    iconGrp.scale.setScalar(1);
+    iconGrp.rotation.set(0, 0, 0);
+    iconMesh.material.opacity = 1;
+    iconAlpha = 1;
+    orbits[0].material.opacity = orbits[0].userData.maxOp;
+    orbits[1].material.opacity = orbits[1].userData.maxOp;
+    glowSp.material.opacity = 0.45;
+
+    const hdr = document.getElementById('welcomeHdr');
+    if (hdr) { hdr.style.opacity = '1'; hdr.style.pointerEvents = ''; }
+    cz.style.display = '';
+    cz.style.pointerEvents = '';
+
+    /* Hide globe chrome via body class */
+    document.body.classList.remove('globe-mode');
+
+    if (typeof window.setGlobeAutoRotate === 'function') window.setGlobeAutoRotate(false);
+
+    clk.getDelta();
+    tick();
+
+    ov.style.transition = 'opacity 0.85s ease';
+    setTimeout(() => ov.classList.remove('vis'), 80);
+  }, 480);
+}
+
+/* Wire the welcome back-button (bottom-left circle) to exit globe mode */
+document.getElementById('welcomeBackBtn').addEventListener('click', exitGlobeState);
+
+/* Single resize handler for the welcome scene */
+window.addEventListener('resize', () => {
+  cam.aspect = W() / H();
+  cam.updateProjectionMatrix();
+  R.setSize(W(), H());
+});
+
+/* Loader fade + kick off the welcome render loop */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    document.getElementById('ld').classList.add('go');
+    setTimeout(() => { const l = document.getElementById('ld'); if (l) l.remove(); }, 300);
+  }, 100);
+  /* Auto-advance to the globe — no click required (only when starting on welcome) */
+  if (!startInGlobe) {
+    setTimeout(() => { goForward(); }, 1250);
+  }
+});
+
+if (startInGlobe) {
+  const ov = document.getElementById('transOverlay');
+  ov.style.transition = 'none'; ov.classList.add('vis');
+  document.getElementById('globeLoading').style.display = 'block';
+  iconGrp.visible = false;
+  /* Fully remove welcome chrome from the layout so its children (logo-bar with
+     pointer-events:auto, z-index 60) cannot intercept clicks meant for the
+     auto-rotate toggle or other globe-mode controls. */
+  const hdr = document.getElementById('welcomeHdr');
+  if (hdr) hdr.style.display = 'none';
+  const czEl = document.getElementById('cz');
+  if (czEl) czEl.style.display = 'none';
+  /* Render loop still runs so the stars layer is alive behind the globe */
+  tick();
+} else {
+  tick();
+}
+
+if (typeof maplibregl === 'undefined') {
+  console.error('maplibregl not loaded — check network / CDN');
+  throw new Error('maplibregl not loaded');
+}
+
+/* ─── Map ──────────────────────────────────────────────────── */
+const map = new maplibregl.Map({
+  container: 'map',
+  style: {
+    version: 8,
+    /* True 3D spherical projection — set inside the style (MapLibre 5+).
+       Globe at low zoom, auto-fades to Mercator around zoom 5. */
+    projection: { type: 'globe' },
+    /* No sky layer — space around the globe stays transparent so the
+       Three.js starfield canvas (#c, z-index 0) shows through. */
+    sources: {
+      'satellite': {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+        ],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: 'Tiles © Esri — Maxar, Earthstar Geographics'
+      },
+      'places': {
+        type: 'raster',
+        tiles: [
+          'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'
+        ],
+        tileSize: 256,
+        maxzoom: 14
+      }
+    },
+    layers: [
+      { id: 'sat',    type: 'raster', source: 'satellite' },
+      { id: 'places', type: 'raster', source: 'places' }
+    ]
+  },
+  center: [40, 25],
+  zoom: 1.6,
+  pitch: 0,           /* home view: no tilt so the sphere stays centered on screen */
+  attributionControl: true,
+  antialias: true,
+  maxTileCacheSize: 2000,
+  prefetchZoomDelta: 5,
+  refreshExpiredTiles: false
+});
+
+/* Belt-and-suspenders: enforce globe projection after construction too,
+   so if the style's projection is stripped by any plugin/transform
+   the map still renders as a sphere. */
+map.on('style.load', () => {
+  try { map.setProjection({ type: 'globe' }); }
+  catch (e) { console.warn('globe projection not supported:', e); }
+});
+
+/* Navigation controls */
+map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+
+/* Lock pitch + bearing so the globe always stays centered on screen.
+   - dragRotate handles right-click drag (rotate/pitch) and Ctrl+left drag.
+   - touchPitch handles two-finger pitch on touch devices.
+   - touchZoomRotate.disableRotation() blocks twist-rotate on touch.
+   Disabling these prevents the user from knocking the globe off-axis while
+   still allowing left-drag to spin it and wheel/pinch to zoom. */
+map.dragRotate.disable();
+map.touchPitch.disable();
+map.touchZoomRotate.disableRotation();
+map.keyboard.disableRotation();
+
+/* Cursor feedback */
+const mapEl = document.getElementById('map');
+map.on('mousedown', () => mapEl.classList.add('dragging'));
+map.on('mouseup',   () => mapEl.classList.remove('dragging'));
+
+/* ─── Zoom-driven pin scale (Google-Maps style) ───────────────
+   Pins stay small at low zoom so dozens don't drown the overview,
+   and grow gradually as the user zooms in.
+   Curve: linear from 0.25× at zoom 0 to 1× at zoom 8, clamped outside. */
+function pinScaleForZoom(z) {
+  const t = Math.max(0, Math.min(1, z / 8));
+  return 0.25 + 0.75 * t;
+}
+function updatePinScale() {
+  document.documentElement.style.setProperty('--pin-scale-global',
+    pinScaleForZoom(map.getZoom()).toFixed(3));
+}
+map.on('zoom', updatePinScale);
+map.once('load', updatePinScale);
+
+/* ─── Auto-rotate (timer-driven, safer than moveend-chained) ── */
+const SECONDS_PER_REV = 180;       /* one full spin every 3 minutes */
+const SPIN_TICK_MS    = 1000;      /* check once per second */
+const MAX_SPIN_ZOOM   = 4;
+const WHEEL_IDLE_MS   = 1500;      /* wait this long after last wheel before resuming spin */
+let spinEnabled       = true;
+let userInteracting   = false;
+let wheelTimer        = null;
+
+const spinInd = document.getElementById('spinInd');
+spinInd.addEventListener('click', () => {
+  spinEnabled = !spinEnabled;
+  spinInd.classList.toggle('off', !spinEnabled);
+  spinInd.textContent = spinEnabled ? '● دوران تلقائي' : '○ دوران متوقف';
+  if (spinEnabled) {
+    spinGlobeTick();
+  } else {
+    /* Halt the current ease immediately — without this, the in-flight 1s
+       easeTo would run to completion and make the toggle feel unresponsive. */
+    try { map.stop(); } catch (e) {}
+  }
+});
+
+function spinGlobeTick() {
+  if (!spinEnabled || userInteracting) return;
+  if (map.getZoom() > MAX_SPIN_ZOOM) return;
+  /* CRITICAL: never start a new ease while one is running or user is mid-gesture */
+  if (map.isEasing() || map.isMoving() || map.isZooming() || map.isRotating()) return;
+
+  const distancePerSecond = (360 / SECONDS_PER_REV) * (SPIN_TICK_MS / 1000);
+  const center = map.getCenter();
+  center.lng -= distancePerSecond;
+  try {
+    map.easeTo({ center, duration: SPIN_TICK_MS, easing: n => n });
+  } catch (e) {
+    console.warn('spin easeTo failed', e);
+  }
+}
+
+/* Mouse / touch drag */
+map.on('mousedown',  () => { userInteracting = true; });
+map.on('touchstart', () => { userInteracting = true; });
+map.on('mouseup',    () => { userInteracting = false; spinGlobeTick(); });
+map.on('touchend',   () => { userInteracting = false; spinGlobeTick(); });
+
+/* Chain the next spin tick the instant the previous ease ends — this prevents
+   the 1s-go / 1s-stop stutter that setInterval-based ticking caused when the
+   timer fired a hair before easeTo released its isEasing() flag. */
+map.on('moveend', () => { spinGlobeTick(); });
+
+/* Wheel zoom was being ignored — that's what caused the spin to crash mid-scroll.
+   Treat it as interaction, and only resume spinning a short idle after the last tick. */
+map.getCanvasContainer().addEventListener('wheel', () => {
+  userInteracting = true;
+  clearTimeout(wheelTimer);
+  wheelTimer = setTimeout(() => {
+    userInteracting = false;
+    spinGlobeTick();
+  }, WHEEL_IDLE_MS);
+}, { passive: true });
+
+/* ─── Pin canvas builders (same look as index.html) ─────────────
+   Each pin is a 48×56 drop-pin shape rendered into a 96×112 canvas at
+   2× for retina. Country pins clip the national flag into the round
+   well at the top; org pins fill that well with a navy disc + the first
+   letter of the org's short name. The resulting canvas is exported as
+   a data URI and used as `background-image` on a DOM marker, so MapLibre
+   just has to position the element. */
+const flagUrl = code => `https://flagcdn.com/w160/${code}.png`;
+
+function loadImg(url) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    i.crossOrigin = 'anonymous';
+    i.onload  = () => res(i);
+    i.onerror = () => rej(new Error('img load failed: ' + url));
+    i.src = url;
+  });
+}
+
+async function flagPinCanvas(code) {
+  const flag = await loadImg(flagUrl(code));
+  const cv = document.createElement('canvas'); cv.width = 96; cv.height = 112;
+  const ctx = cv.getContext('2d'); ctx.scale(2, 2);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 5; ctx.shadowOffsetY = 2;
+  ctx.fillStyle = '#fff';
+  ctx.fill(new Path2D('M24 54 C24 54 44 32 44 20 A20 20 0 1 0 4 20 C4 32 24 54 24 54 Z'));
+  ctx.restore();
+  const cx = 24, cy = 20, r = 18;
+  ctx.save();
+  /* Paint the well white first so "contain"-style letterboxing for
+     non-square flags shows as a clean white margin instead of black. */
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+  ctx.clip();
+  /* CONTAIN (not cover): scale so the longer dimension fits the circle
+     diameter. This guarantees the WHOLE flag is visible — UAE's red
+     hoist band, Kuwait's green hoist, etc. would otherwise be cropped
+     out by a "cover" fit. The trade-off is a small white margin on the
+     short axis, which reads cleanly against the pin's white frame. */
+  const sc = (r * 2) / Math.max(flag.width, flag.height);
+  ctx.drawImage(flag, cx - flag.width * sc / 2, cy - flag.height * sc / 2, flag.width * sc, flag.height * sc);
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(0,0,0,.2)'; ctx.lineWidth = 0.8; ctx.stroke();
+  return cv;
+}
+
+function orgPinCanvas(letter) {
+  const cv = document.createElement('canvas'); cv.width = 96; cv.height = 112;
+  const ctx = cv.getContext('2d'); ctx.scale(2, 2);
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+  const g = ctx.createLinearGradient(4, 0, 44, 40);
+  g.addColorStop(0, '#b388ff'); g.addColorStop(1, '#ffd700');
+  ctx.fillStyle = g;
+  ctx.fill(new Path2D('M24 54 C24 54 44 32 44 20 A20 20 0 1 0 4 20 C4 32 24 54 24 54 Z'));
+  ctx.restore();
+  const cx = 24, cy = 20, r = 14;
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a1128'; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.fillStyle = '#ffd700';
+  ctx.font = 'bold 16px Tajawal, Segoe UI, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(letter, cx, cy + 1);
+  return cv;
+}
+
+const pinCanvases = {};
+
+/* ─── Pins from activities.json ─────────────────────────────── */
+map.on('load', async () => {
+  const ver = maplibregl.version || '(unknown)';
+  console.log('MapLibre version:', ver);
+
+  try {
+    const data = await (await fetch('/public/data/activities.json')).json();
+
+    /* TEMPORARY per-activity locations.
+       activities.json doesn't ship coordinates per activity yet, so each
+       activity inherited its entity's lat/lng — meaning every Saudi
+       activity sat on the exact same pin. We synthesize a small offset
+       per activity (golden-angle spiral inside a small disk around the
+       entity center) so each activity gets its own pin + selection slot.
+       Drop this block once real coordinates arrive. */
+    const ACT_OFFSET_KM = { country: 50, org: 5 };
+    const GOLDEN = 2.39996;
+    function offsetActivity(kind, code, lat, lng, idx, total) {
+      const r = (ACT_OFFSET_KM[kind] / 111) * Math.sqrt((idx + 0.5) / Math.max(total, 1));
+      const seed = code ? code.charCodeAt(0) % 7 : 0;
+      const ang = idx * GOLDEN + seed;
+      return { lat: lat + r * Math.cos(ang), lng: lng + r * Math.sin(ang) };
+    }
+    function _entityMeta(e, kind) {
+      return { code: e.code, name: e.name, short: e.short || e.name, kind, lat: e.lat, lng: e.lng };
+    }
+    const allActivities = [];
+    function _indexEntity(e, kind) {
+      const acts = e.activities || [];
+      acts.forEach((a, i) => {
+        const off = offsetActivity(kind, e.code, e.lat, e.lng, i, acts.length);
+        allActivities.push({
+          id:         `${e.code}-${i}`,
+          name:       a.name,
+          type:       a.type,
+          subtype:    a.subtype,
+          date:       a.date,
+          lat:        off.lat,
+          lng:        off.lng,
+          entityCode: e.code,
+          entityKind: kind,
+          entity:     _entityMeta(e, kind)
+        });
+      });
+    }
+    (data.countries || []).forEach(c => _indexEntity(c, 'country'));
+    (data.organizations || []).forEach(o => _indexEntity(o, 'org'));
+    /* Hand off to the activities panel via data so it doesn't re-derive. */
+    data._activities = allActivities;
+
+    const backBtn = document.getElementById('backBtn');
+    let activeEl = null;
+
+    function flyHome() {
+      spinEnabled = true;
+      spinInd.classList.remove('off');
+      spinInd.textContent = '● دوران تلقائي';
+      if (activeEl) { activeEl.classList.remove('active'); activeEl = null; }
+      backBtn.classList.remove('visible');
+      /* Sync side-panel: a flight back to the overview means no entity
+         is in focus anymore, so drop the .entity-active glow on cards. */
+      if (typeof window.activitiesPanelClearHighlight === 'function') {
+        window.activitiesPanelClearHighlight();
+      }
+      map.flyTo({
+        center: [40, 25],
+        zoom:   1.6,
+        essential: true
+      });
+    }
+    backBtn.addEventListener('click', flyHome);
+
+    /* Only force a zoom-in when the user is on the overview (zoom < 4).
+       Once they've explored deeper, clicking a pin just pans — we don't
+       yank the zoom back to a fixed level. */
+    const OVERVIEW_ZOOM_THRESHOLD = 4;
+    const PIN_TARGET_ZOOM         = 5;
+
+    function flyToPin(d, el) {
+      spinEnabled = false;
+      spinInd.classList.add('off');
+      spinInd.textContent = '○ دوران متوقف';
+
+      if (activeEl) activeEl.classList.remove('active');
+      activeEl = el;
+      el.classList.add('active');
+
+      userInteracting = true;
+
+      const flyOpts = { center: [d.lng, d.lat], essential: true };
+      if (map.getZoom() < OVERVIEW_ZOOM_THRESHOLD) {
+        flyOpts.zoom = PIN_TARGET_ZOOM;
+      }
+      map.flyTo(flyOpts);
+
+      const onArrive = () => {
+        userInteracting = false;
+        map.off('moveend', onArrive);
+      };
+      map.on('moveend', onArrive);
+
+      setTimeout(() => backBtn.classList.add('visible'), 250);
+    }
+
+    /* Build all pin canvases in parallel — flags are async (image load),
+       org pins are synchronous. Any flag that 404s is silently skipped. */
+    await Promise.all([
+      ...data.countries.map(async c => {
+        try { pinCanvases[c.code] = (await flagPinCanvas(c.code)).toDataURL(); }
+        catch (e) { /* missing flag — pin will be skipped below */ }
+      }),
+      ...data.organizations.map(o => {
+        const letter = (o.short || o.name || '?').charAt(0);
+        pinCanvases[o.code] = orgPinCanvas(letter).toDataURL();
+      })
+    ]);
+
+    /* One pin per ACTIVITY, keyed by activity id. pinCanvases is still
+       indexed by entity code (flag/letter is per-entity), so multiple
+       activities of the same country reuse the same pin canvas. */
+    const pinMarkers = {};
+
+    let added = 0;
+    allActivities.forEach(act => {
+      if (typeof act.lat !== 'number' || typeof act.lng !== 'number') return;
+      if (!pinCanvases[act.entityCode]) return;
+      const wrap  = document.createElement('div');
+      wrap.className = 'pin-marker-wrap';
+      wrap.title = `${act.entity.short} — ${act.name}`;
+      const inner = document.createElement('div');
+      inner.className = 'pin-marker';
+      inner.style.backgroundImage = `url(${pinCanvases[act.entityCode]})`;
+      wrap.appendChild(inner);
+      wrap.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        /* Pin click and card click route through the same activateActivity
+           so the toggle/highlight state is shared in both directions. */
+        if (typeof window.activateActivity === 'function') {
+          window.activateActivity(act);
+        } else {
+          flyToPin(act, wrap);
+        }
+      });
+      const marker = new maplibregl.Marker({
+        element: wrap,
+        anchor: 'bottom',
+        opacityWhenCovered: '0'
+      })
+        .setLngLat([act.lng, act.lat])
+        .addTo(map);
+      pinMarkers[act.id] = { marker, kind: act.entityKind, el: wrap, entityCode: act.entityCode };
+      added++;
+    });
+    console.log('Added ' + added + ' activity pins to globe');
+
+    /* Pin filter whitelist by activity id (null = show all). */
+    let activityFilterIds = null;
+    function refreshPins() {
+      Object.entries(pinMarkers).forEach(([id, entry]) => {
+        const ok = !activityFilterIds || activityFilterIds.has(id);
+        entry.el.style.display = ok ? '' : 'none';
+      });
+    }
+    window.setActivityFilter = function(ids) { activityFilterIds = ids; refreshPins(); };
+
+    /* Bridge: panel card click → globe fly to that activity's offset point. */
+    window.globeFlyToActivity = function(act) {
+      if (!act || typeof act.lat !== 'number' || typeof act.lng !== 'number') return;
+      const entry = pinMarkers[act.id];
+      flyToPin(act, entry ? entry.el : document.createElement('div'));
+    };
+    /* Exposed so the activities panel can run the reverse animation
+       (fly back to the globe overview) when the user re-clicks the
+       same active card. */
+    window.globeFlyHome = flyHome;
+    window.setGlobeAutoRotate = function(v) {
+      spinEnabled = !!v;
+      spinInd.classList.toggle('off', !v);
+      spinInd.textContent = v ? '● دوران تلقائي' : '○ دوران متوقف';
+      if (spinEnabled) spinGlobeTick();
+      else { try { map.stop(); } catch (e) {} }
+    };
+
+    /* ─── Build stats + activities panel from the same data set ─── */
+    buildStats(data);
+    /* animateStats is triggered from enterGlobeState() instead of here, so the
+       count-up + slide-in fire exactly when the user arrives on the globe. */
+    initActivitiesPanel(data);
+
+    /* Kick off the spin chain. From here it self-perpetuates via the moveend
+       handler — each ease's completion immediately queues the next one. */
+    spinGlobeTick();
+
+    /* Signal the welcome scene that the globe is fully built and ready to show.
+       The trans_fwd handoff in tick() waits on this flag before calling
+       enterGlobeState(), so pins + stats are already wired by the time the
+       transition overlay fades. */
+    globeReady = true;
+    if (startInGlobe) {
+      document.getElementById('globeLoading').style.display = 'none';
+      enterGlobeState();
+    }
+  } catch (e) {
+    console.error('Failed to load activities.json:', e);
+    /* Even on failure, unblock the welcome → globe handoff so the user is
+       never stuck on a black overlay. */
+    globeReady = true;
+    if (startInGlobe) {
+      document.getElementById('globeLoading').style.display = 'none';
+      enterGlobeState();
+    }
+  }
+});
+
+/* ============================================================
+   STATS — NEW PREMIUM DESIGN with real JSON data
+   (ported from globe_modified.html)
+============================================================ */
+let _sd = null;
+
+function buildStats(data) {
+  const allActs = [
+    ...data.countries.flatMap(c => c.activities || []),
+    ...data.organizations.flatMap(o => o.activities || [])
+  ];
+  const total    = allActs.length;
+  const byType   = {};
+  allActs.forEach(a => { byType[a.type] = (byType[a.type] || 0) + 1; });
+
+  const cc = data.countries.length;
+  const oc = data.organizations.length;
+
+  const events   = byType['الفعاليات']               || 0;
+  const training = byType['التعليم_والتدريب']        || 0;
+  const partners = byType['الشراكات_والاتفاقيات']    || 0;
+  const research = byType['البحوث_العلمية_والكتب']   || 0;
+
+  const regDef = {
+    'آسيا':          ['cn','in','kz','kr','kg','tm','sg','my','mv','tw','tr','tj','jp','id','uz','pk','af','bn','bd','th','az'],
+    'أوروبا':        ['fr','de','gb','es','ba','no','it','ro','xk','ru','at','by','pl','al'],
+    'العالم العربي': ['sa','ae','qa','kw','om','ma','tn','dz'],
+    'إفريقيا':       ['et','km','za','gn','ke','ng','ug']
+  };
+  const regionsCovered = Object.values(regDef).filter(codes =>
+    data.countries.some(c => codes.includes(c.code))
+  ).length;
+
+  const pct = n => total > 0 ? Math.round(n / total * 100) : 0;
+
+  /* Inline SVG icon set — line style, currentColor stroke */
+  const SC_ICONS = {
+    chart:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 6-7"/></svg>',
+    globe:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>',
+    building: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V6l7-3 7 3v15"/><path d="M9 21v-6h6v6"/><path d="M9 10h.01M15 10h.01"/></svg>',
+    star:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l2.7 6.4 6.8.6-5.2 4.6 1.6 6.7L12 17.3l-5.9 3.5 1.6-6.7L2.5 9.5l6.8-.6z"/></svg>',
+    cap:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9l10-5 10 5-10 5z"/><path d="M6 11v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5"/><path d="M22 9v5"/></svg>',
+    hands:    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 12l-3-3-5 5 4 4 4-2"/><path d="M13 12l3-3 5 5-4 4-4-2"/><path d="M9 14l3 3 3-3"/></svg>',
+    book:     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4a2 2 0 0 1 2-2h12v17H7a2 2 0 0 0-2 2z"/><path d="M5 19a2 2 0 0 0 2 2h12"/></svg>',
+    map:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3l-6 2v16l6-2 6 2 6-2V3l-6 2z"/><path d="M9 3v16M15 5v16"/></svg>'
+  };
+
+  /* RIGHT column — 4 cards */
+  const rightCards = [
+    {
+      label: 'إجمالي الأنشطة', value: total,
+      unit: 'نشاط دولي', badge: `${cc + oc} جهة`,
+      variant: 'blue', icon: 'chart', bar: 100
+    },
+    {
+      label: 'الدول المشاركة', value: cc,
+      unit: 'دولة', badge: `${regionsCovered} قارات`,
+      variant: 'green', icon: 'globe', bar: Math.min(cc * 1.5, 100)
+    },
+    {
+      label: 'المنظمات الدولية', value: oc,
+      unit: 'منظمة', badge: `${(cc + oc) > 0 ? Math.round(oc/(cc+oc)*100) : 0}% من الجهات`,
+      variant: 'purple', icon: 'building', bar: Math.min(oc * 8, 100)
+    },
+    {
+      label: 'الفعاليات والمؤتمرات', value: events,
+      unit: 'فعالية', badge: `${pct(events)}% من الإجمالي`,
+      variant: 'orange', icon: 'star', bar: pct(events)
+    }
+  ];
+
+  /* LEFT column — 4 cards */
+  const leftCards = [
+    {
+      label: 'التعليم والتدريب', value: training,
+      unit: 'برنامج', badge: `${pct(training)}% من الإجمالي`,
+      variant: 'cyan', icon: 'cap', bar: pct(training)
+    },
+    {
+      label: 'الشراكات والاتفاقيات', value: partners,
+      unit: 'اتفاقية', badge: `${pct(partners)}% من الإجمالي`,
+      variant: 'pink', icon: 'hands', bar: pct(partners)
+    },
+    {
+      label: 'البحوث العلمية والكتب', value: research,
+      unit: 'بحث وكتاب', badge: `${pct(research)}% من الإجمالي`,
+      variant: 'gold', icon: 'book', bar: pct(research)
+    },
+    {
+      label: 'التغطية الإقليمية', value: regionsCovered,
+      unit: 'منطقة جغرافية', badge: '4 قارات مستهدفة',
+      variant: 'teal', icon: 'map', bar: (regionsCovered / 4) * 100
+    }
+  ];
+
+  function cardHTML(c, i) {
+    const pctVal = Math.round(c.bar);
+    return `
+      <div class="stat-card v-${c.variant}" style="--d:${i * 0.08}s"
+           data-n="${c.value}" data-bar="${pctVal}">
+        <div class="sc-top">
+          <span class="sc-label">${c.label}</span>
+          <div class="sc-ring">
+            <svg viewBox="0 0 40 40" aria-hidden="true">
+              <circle class="sc-ring-bg" cx="20" cy="20" r="15.915"/>
+              <circle class="sc-ring-fg" cx="20" cy="20" r="15.915" data-w="${pctVal}"/>
+            </svg>
+            <span class="sc-icon">${SC_ICONS[c.icon] || ''}</span>
+          </div>
+        </div>
+        <div class="sc-num-row">
+          <span class="sc-value" data-target="${c.value}">0</span>
+          <span class="sc-unit">${c.unit}</span>
+        </div>
+        <div class="sc-foot">
+          <span class="sc-badge"><span class="badge-arrow">↑</span>${c.badge}</span>
+          <span class="sc-pct">${pctVal}%</span>
+        </div>
+      </div>`;
+  }
+
+  document.getElementById('statsRight').innerHTML = rightCards.map(cardHTML).join('');
+  document.getElementById('statsLeft').innerHTML  = leftCards.map(cardHTML).join('');
+
+  _sd = { total, cc, oc };
+}
+
+function animateStats() {
+  if (!_sd) return;
+  document.querySelectorAll('.stat-card').forEach((card, i) => {
+    const valEl = card.querySelector('.sc-value');
+    const ring  = card.querySelector('.sc-ring-fg');
+    if (!valEl) return;
+
+    const n = parseFloat(valEl.dataset.target) || 0;
+    const w = ring ? (parseFloat(ring.dataset.w) || 0) : 0;
+
+    valEl.textContent = '0';
+    if (ring) {
+      ring.style.transition = 'none';
+      ring.style.strokeDashoffset = '100';
+      void ring.getBoundingClientRect();
+    }
+
+    const baseDelay = 260 + i * 75;
+
+    /* slide-in */
+    setTimeout(() => card.classList.add('ready'), 20 + i * 45);
+
+    /* count-up */
+    setTimeout(() => {
+      const t0 = performance.now(), dur = 1400;
+      const loop = now => {
+        const p = Math.min((now - t0) / dur, 1);
+        const ease = 1 - Math.pow(1 - p, 4);
+        valEl.textContent = Math.round(ease * n).toLocaleString('ar-EG');
+        if (p < 1) requestAnimationFrame(loop);
+      };
+      requestAnimationFrame(loop);
+    }, baseDelay);
+
+    /* ring sweep — circumference is normalized to 100 (r ≈ 15.915) */
+    if (ring) {
+      setTimeout(() => {
+        ring.style.transition = '';
+        ring.style.strokeDashoffset = String(Math.max(0, 100 - w));
+      }, baseDelay + 100);
+    }
+  });
+}
+
+/* ============================================================
+   ACTIVITIES PANEL — filters + list rendering
+   (ported from index.html; `#globeUI` swapped for `document.body`
+    so the same CSS class transitions fire in this page.)
+============================================================ */
+function initActivitiesPanel(data) {
+  const TYPE_META = (data.activityTypes && typeof data.activityTypes === 'object') ? data.activityTypes : {};
+
+  function yearOf(date) {
+    if (!date || typeof date !== 'string') return null;
+    const m = date.match(/(19|20)\d{2}/);
+    return m ? parseInt(m[0], 10) : null;
+  }
+  /* Reuse the per-activity index built up-front in map.on('load'). It
+     already carries id + entity + lat/lng, so the panel just needs to
+     decorate each item with `year`. */
+  const flat = (data._activities || []).map(a => ({
+    id: a.id,
+    name: a.name, type: a.type, subtype: a.subtype,
+    date: a.date, year: yearOf(a.date),
+    lat: a.lat, lng: a.lng,
+    entity: a.entity
+  }));
+
+  const state = {
+    q: '', type: 'all', subtype: 'all',
+    location: 'all', year: 'all', group: 'none',
+    /* Tracks the *single activity* currently focused — pin and card
+       clicks toggle on this id together. Persisted so the highlight
+       survives filter changes / panel reopens. */
+    highlightedActivityId: null
+  };
+
+  const typesInData = [...new Set(flat.map(x => x.type).filter(Boolean))];
+  const FALLBACK_PALETTE = ['#4facfe','#4ade80','#b388ff','#ff9a44','#ff5c8d','#ffd700','#00dbde','#5ba4a4'];
+  const fallbackColorMap = {};
+  typesInData.forEach((t, i) => { fallbackColorMap[t] = FALLBACK_PALETTE[i % FALLBACK_PALETTE.length]; });
+  const typeColor = t => (TYPE_META[t] && TYPE_META[t].color) || fallbackColorMap[t] || '#4facfe';
+  const typeLabel = t => (TYPE_META[t] && TYPE_META[t].label) || (t || '').replace(/_/g, ' ');
+
+  const locations = [
+    ...data.countries.map(c => ({ code: c.code, label: c.short || c.name, kind: 'country' })),
+    ...data.organizations.map(o => ({ code: o.code, label: o.short || o.name, kind: 'org' }))
+  ];
+
+  const ICON = {
+    calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+    tag:      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>'
+  };
+
+  const typeChipsEl    = document.getElementById('actTypeChips');
+  const subtypeSection = document.getElementById('subtypeSection');
+  const subtypeChipsEl = document.getElementById('actSubtypeChips');
+  const locSel         = document.getElementById('actLocationFilter');
+  const yearSel        = document.getElementById('actYearFilter');
+  const groupEl        = document.getElementById('actGroupBy');
+  const listEl         = document.getElementById('actList');
+  const countEl        = document.getElementById('actResultsCount');
+  const searchEl       = document.getElementById('actSearch');
+
+  /* Match an item against the active filters, optionally skipping
+     a subset of fields. Used to compute "what would be available
+     if the user changed only this one filter?" — so the dropdowns
+     never offer a value that would yield zero results. */
+  function matchesExcept(a, exclude) {
+    const q = state.q.trim().toLowerCase();
+    if (!exclude.has('type') && state.type !== 'all' && a.type !== state.type) return false;
+    if (!exclude.has('subtype') && state.subtype !== 'all' && a.subtype !== state.subtype) return false;
+    if (!exclude.has('location') && state.location !== 'all') {
+      const [kind, code] = state.location.split(':');
+      const wantKind = kind === 'c' ? 'country' : 'org';
+      if (a.entity.kind !== wantKind || a.entity.code !== code) return false;
+    }
+    if (!exclude.has('year') && state.year !== 'all') {
+      if (state.year === 'none') { if (a.year) return false; }
+      else if (a.year !== parseInt(state.year, 10)) return false;
+    }
+    if (!exclude.has('q') && q && !(a.name || '').toLowerCase().includes(q)) return false;
+    return true;
+  }
+
+  function applyFilters() {
+    return flat.filter(a => matchesExcept(a, new Set()));
+  }
+
+  function availableTypeCounts() {
+    const scoped = flat.filter(a => matchesExcept(a, new Set(['type', 'subtype'])));
+    const counts = {};
+    scoped.forEach(x => { counts[x.type] = (counts[x.type]||0)+1; });
+    return { counts, total: scoped.length };
+  }
+
+  function availableSubtypeCounts() {
+    const scoped = flat.filter(a => matchesExcept(a, new Set(['subtype'])));
+    const counts = {};
+    scoped.forEach(x => { if (x.subtype) counts[x.subtype] = (counts[x.subtype]||0)+1; });
+    return { counts, total: Object.values(counts).reduce((s,n)=>s+n,0) };
+  }
+
+  function availableLocationCodes() {
+    const scoped = flat.filter(a => matchesExcept(a, new Set(['location'])));
+    const set = new Set();
+    scoped.forEach(a => set.add(`${a.entity.kind === 'country' ? 'c' : 'o'}:${a.entity.code}`));
+    return set;
+  }
+
+  function availableYearSet() {
+    const scoped = flat.filter(a => matchesExcept(a, new Set(['year'])));
+    const ys = new Set();
+    let hasUndefined = false;
+    scoped.forEach(a => { if (a.year) ys.add(a.year); else hasUndefined = true; });
+    return { years: [...ys].sort((a,b) => b - a), hasUndefined };
+  }
+
+  function renderTypeChips() {
+    const { counts, total } = availableTypeCounts();
+
+    /* If the active type no longer has any matching items, fall back to "all". */
+    if (state.type !== 'all' && !counts[state.type]) {
+      state.type = 'all';
+      state.subtype = 'all';
+    }
+
+    const chips = [
+      `<button type="button" class="ap-chip ${state.type==='all'?'active':''}" data-v="all"
+         style="--chipActive:rgba(79,172,254,.18);--chipBorder:rgba(79,172,254,.55);--chipColor:#4facfe">
+         جميع الأنشطة<span class="count">${total}</span>
+       </button>`
+    ];
+    typesInData.forEach(t => {
+      const n = counts[t] || 0;
+      if (n === 0 && state.type !== t) return;          /* drop empty types */
+      const color = typeColor(t);
+      const active = state.type === t ? 'active' : '';
+      chips.push(`<button type="button" class="ap-chip ${active}" data-v="${t}"
+        style="--chipActive:${color}28;--chipBorder:${color}aa;--chipColor:${color}">
+        <span class="swatch" style="--sw:${color}"></span>
+        ${typeLabel(t)}<span class="count">${n}</span>
+      </button>`);
+    });
+    typeChipsEl.innerHTML = chips.join('');
+  }
+
+  function renderSubtypeChips() {
+    const { counts, total } = availableSubtypeCounts();
+    const subs = Object.keys(counts);
+
+    if (subs.length === 0) {
+      subtypeSection.style.display = 'none';
+      state.subtype = 'all';
+      return;
+    }
+
+    /* Drop a stale subtype selection that no longer matches. */
+    if (state.subtype !== 'all' && !counts[state.subtype]) {
+      state.subtype = 'all';
+    }
+
+    subtypeSection.style.display = 'block';
+    const color = state.type !== 'all' ? typeColor(state.type) : '#4facfe';
+
+    const chips = [
+      `<button type="button" class="ap-chip ${state.subtype==='all'?'active':''}" data-v="all"
+         style="--chipActive:${color}22;--chipBorder:${color}88;--chipColor:${color}">
+         الكل<span class="count">${total}</span>
+       </button>`,
+      ...subs.map(s => `<button type="button" class="ap-chip ${state.subtype===s?'active':''}" data-v="${s}"
+          style="--chipActive:${color}22;--chipBorder:${color}88;--chipColor:${color}">
+          ${s}<span class="count">${counts[s]}</span>
+        </button>`)
+    ];
+    subtypeChipsEl.innerHTML = chips.join('');
+  }
+
+  function refreshSelects() {
+    /* ── Location dropdown: only entities that have matching activities. ── */
+    const availLoc = availableLocationCodes();
+    const countryOpts = locations.filter(l => l.kind === 'country' && availLoc.has(`c:${l.code}`));
+    const orgOpts     = locations.filter(l => l.kind === 'org'     && availLoc.has(`o:${l.code}`));
+
+    let locHTML = '<option value="all">جميع الجهات</option>';
+    if (countryOpts.length) {
+      locHTML += '<optgroup label="الدول">'
+        + countryOpts.map(l => `<option value="c:${l.code}">${l.label}</option>`).join('')
+        + '</optgroup>';
+    }
+    if (orgOpts.length) {
+      locHTML += '<optgroup label="المنظمات">'
+        + orgOpts.map(l => `<option value="o:${l.code}">${l.label}</option>`).join('')
+        + '</optgroup>';
+    }
+    locSel.innerHTML = locHTML;
+
+    /* If the previously selected entity is no longer available, reset. */
+    if (state.location !== 'all' && !availLoc.has(state.location)) {
+      state.location = 'all';
+    }
+    locSel.value = state.location;
+
+    /* ── Year dropdown: only years (and "غير محدد") that have matching activities. ── */
+    const { years: availYears, hasUndefined } = availableYearSet();
+    let yearHTML = '<option value="all">جميع السنوات</option>'
+      + availYears.map(y => `<option value="${y}">${y}</option>`).join('');
+    if (hasUndefined) yearHTML += '<option value="none">غير محدد</option>';
+    yearSel.innerHTML = yearHTML;
+
+    if (state.year !== 'all') {
+      const stillValid = (state.year === 'none' && hasUndefined)
+        || availYears.includes(parseInt(state.year, 10));
+      if (!stillValid) state.year = 'all';
+    }
+    yearSel.value = state.year;
+  }
+
+  function flagUrlLocal(code) {
+    return `https://flagcdn.com/w40/${(code||'').toLowerCase()}.png`;
+  }
+
+  function cardHTML(a, idx) {
+    const color = typeColor(a.type);
+    const delay = Math.min(idx * 0.02, 0.4);
+    const dateTxt = a.date || 'بدون تاريخ';
+    const entityFlag = a.entity.kind === 'country'
+      ? `<img class="flag" src="${flagUrlLocal(a.entity.code)}" alt="" onerror="this.style.display='none'">`
+      : `<span class="entity-dot" style="color:${color}"></span>`;
+
+    const subtypeMeta = a.subtype
+      ? `<span class="ap-meta subtype">${ICON.tag}<span>${a.subtype}</span></span>`
+      : '';
+
+    /* Per-activity id drives the toggle; same picture whether the
+       activation came from this card or its pin on the globe. */
+    const activeCls = state.highlightedActivityId === a.id
+      ? ' entity-active is-launching' : '';
+    return `
+      <article class="ap-card${activeCls}" role="button" tabindex="0"
+               data-activity-id="${a.id}"
+               aria-label="فتح ${a.name}"
+               style="--accent:${color}; animation-delay:${delay}s">
+        <div class="ap-card-head">
+          <span class="ap-type-tag">
+            <span class="dot"></span>
+            <span>${typeLabel(a.type)}</span>
+          </span>
+          <span class="ap-entity-tag" title="${a.entity.short}">
+            ${entityFlag}<span>${a.entity.short}</span>
+          </span>
+        </div>
+        <div class="ap-card-title">${a.name}</div>
+        <div class="ap-card-foot">
+          <span class="ap-meta">${ICON.calendar}<span>${dateTxt}</span></span>
+          ${subtypeMeta}
+        </div>
+      </article>`;
+  }
+
+  function groupBy(items, key) {
+    const map = new Map();
+    items.forEach(x => {
+      let k;
+      if (key === 'year')        k = x.year || 'بدون تاريخ';
+      else if (key === 'entity') k = x.entity.short;
+      else if (key === 'type')   k = typeLabel(x.type);
+      map.has(k) ? map.get(k).push(x) : map.set(k, [x]);
+    });
+    return map;
+  }
+
+  function isFilterActive() {
+    return state.q.trim() !== '' || state.type !== 'all' || state.subtype !== 'all'
+        || state.location !== 'all' || state.year !== 'all';
+  }
+
+  function syncPinsToFilters(items) {
+    if (typeof window.setActivityFilter !== 'function') return;
+    if (!isFilterActive()) { window.setActivityFilter(null); return; }
+    /* Per-activity pins → filter by activity id, not entity code. */
+    const ids = new Set(items.map(a => a.id));
+    window.setActivityFilter(ids);
+  }
+
+  function render() {
+    const items = applyFilters();
+    countEl.innerHTML = `<b>${items.length}</b>نشاط مطابق`;
+    syncPinsToFilters(items);
+
+    if (!items.length) {
+      listEl.innerHTML = `
+        <div class="ap-empty">
+          <div class="ap-empty-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <div class="ap-empty-t">لا توجد نتائج</div>
+          <div class="ap-empty-s">جرب تعديل الفلاتر أو البحث بكلمات أخرى</div>
+        </div>`;
+      return;
+    }
+
+    if (state.group === 'none') {
+      listEl.innerHTML = items.map((a,i) => cardHTML(a,i)).join('');
+    } else {
+      const groups = groupBy(items, state.group);
+      const sorted = [...groups.entries()];
+      if (state.group === 'year') sorted.sort((a,b) => (b[0]==='بدون تاريخ' ? -1 : a[0]==='بدون تاريخ' ? 1 : b[0]-a[0]));
+      else sorted.sort((a,b) => b[1].length - a[1].length);
+
+      listEl.innerHTML = sorted.map(([k, arr]) => `
+        <div class="ap-group-title">
+          <span>${k}</span>
+          <span class="badge">${arr.length}</span>
+        </div>
+        ${arr.map((a,i) => cardHTML(a,i)).join('')}
+      `).join('');
+    }
+  }
+
+  /* Re-render every dependent UI piece after a filter change so that
+     chip counts, dropdown options, and the result list all stay in sync
+     with each other (no "phantom" options that produce zero results). */
+  function rerenderAll() {
+    renderTypeChips();
+    renderSubtypeChips();
+    refreshSelects();
+    render();
+  }
+
+  typeChipsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.ap-chip'); if (!btn) return;
+    state.type = btn.dataset.v;
+    state.subtype = 'all';
+    rerenderAll();
+  });
+  subtypeChipsEl.addEventListener('click', e => {
+    const btn = e.target.closest('.ap-chip'); if (!btn) return;
+    state.subtype = btn.dataset.v;
+    rerenderAll();
+  });
+  searchEl.addEventListener('input', e => { state.q = e.target.value; rerenderAll(); });
+  locSel.addEventListener('change', e => { state.location = e.target.value; rerenderAll(); });
+  yearSel.addEventListener('change', e => { state.year = e.target.value; rerenderAll(); });
+
+  groupEl.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    state.group = btn.dataset.v;
+    groupEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b === btn));
+    render();
+  });
+
+  /* ── Unified entry point: pin-click and card-click both end up here.
+     Toggle is keyed on the activity id (state.highlightedActivityId), so
+     re-clicking the same pin OR its card flies home, and the highlight
+     stays on exactly one card at a time — perfectly 1:1 with one pin. ── */
+  function activateActivity(act) {
+    if (!act || !act.id) return;
+    if (typeof act.lat !== 'number' || typeof act.lng !== 'number') return;
+
+    /* Already active → toggle off (fly home, clear highlight). flyHome
+       calls activitiesPanelClearHighlight which resets state + strips
+       the two classes from any cards. */
+    if (state.highlightedActivityId === act.id) {
+      try {
+        if (typeof window.globeFlyHome === 'function') window.globeFlyHome();
+      } catch (e) {}
+      return;
+    }
+
+    state.highlightedActivityId = act.id;
+
+    /* If the panel is closed (typical pin-click-from-globe case), open
+       it so the user sees the matching card alongside the zoom. openPanel
+       re-renders the list — cardHTML applies the highlight classes from
+       state.highlightedActivityId, and openPanel itself queues the
+       scroll-into-view. When the panel is already open we just toggle
+       DOM classes in place to avoid a wasted full re-render. */
+    if (!document.body.classList.contains('viewing-activities')) {
+      openPanel();
+    } else {
+      let firstMatch = null;
+      listEl.querySelectorAll('.ap-card').forEach(c => {
+        const isMatch = c.dataset.activityId === act.id;
+        c.classList.toggle('entity-active', isMatch);
+        c.classList.toggle('is-launching', isMatch);
+        if (isMatch && !firstMatch) firstMatch = c;
+      });
+      if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    try {
+      if (typeof window.globeFlyToActivity === 'function') {
+        window.globeFlyToActivity(act);
+      }
+    } catch (e) {}
+  }
+  /* Exposed so the pin click handler in the main script section
+     can route through the same code path. */
+  window.activateActivity = activateActivity;
+
+  function activateFromCard(card) {
+    const id = card.dataset.activityId;
+    if (!id) return;
+    const act = flat.find(a => a.id === id);
+    if (act) activateActivity(act);
+  }
+
+  listEl.addEventListener('click', e => {
+    const card = e.target.closest('.ap-card'); if (!card) return;
+    activateFromCard(card);
+  });
+  listEl.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    const card = e.target.closest('.ap-card'); if (!card) return;
+    e.preventDefault(); activateFromCard(card);
+  });
+
+  document.getElementById('actResetBtn').addEventListener('click', () => {
+    state.q = ''; state.type = 'all'; state.subtype = 'all';
+    state.location = 'all'; state.year = 'all'; state.group = 'none';
+    state.highlightedActivityId = null;
+    searchEl.value = '';
+    groupEl.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.v === 'none'));
+    rerenderAll();
+  });
+
+  /* ── Open / close transitions (drives CSS via body.viewing-activities) ── */
+  const openBtn  = document.getElementById('activitiesToggleBtn');
+  const closeBtn = document.getElementById('activitiesCloseBtn');
+  const panelEl  = document.getElementById('activitiesPanel');
+
+  /* Drive map.resize() across the CSS transition so the WebGL canvas
+     follows the shrinking/growing #map div smoothly instead of popping
+     at the end. ~900ms matches the CSS transition above. */
+  let _panelResizeRaf = null;
+  function smoothResizeMap() {
+    if (_panelResizeRaf) cancelAnimationFrame(_panelResizeRaf);
+    const dur = 900;
+    const start = performance.now();
+    const loop = () => {
+      try { map.resize(); } catch(e) {}
+      if (performance.now() - start < dur) {
+        _panelResizeRaf = requestAnimationFrame(loop);
+      }
+    };
+    _panelResizeRaf = requestAnimationFrame(loop);
+  }
+
+  function openPanel() {
+    document.body.classList.add('viewing-activities');
+    panelEl.setAttribute('aria-hidden', 'false');
+    try { if (typeof window.setGlobeAutoRotate === 'function') window.setGlobeAutoRotate(false); } catch(e) {}
+    render();
+    smoothResizeMap();
+    /* If a pin was clicked while the panel was closed, the highlight was
+       set silently. Now that the panel is sliding in, scroll to the
+       active card so the user sees the connection. */
+    if (state.highlightedActivityId) {
+      setTimeout(() => {
+        const firstMatch = listEl.querySelector('.ap-card.is-launching');
+        if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }, 350);
+    }
+  }
+
+  /* Called by flyHome (top "back" button) and the reset button so the
+     panel highlight stays in sync with the globe overview state. */
+  window.activitiesPanelClearHighlight = function() {
+    state.highlightedActivityId = null;
+    listEl.querySelectorAll('.entity-active').forEach(c => c.classList.remove('entity-active'));
+    listEl.querySelectorAll('.is-launching').forEach(c => c.classList.remove('is-launching'));
+  };
+  function closePanel() {
+    document.body.classList.remove('viewing-activities');
+    panelEl.setAttribute('aria-hidden', 'true');
+    listEl.querySelectorAll('.is-launching').forEach(c => c.classList.remove('is-launching'));
+    try { if (typeof window.setGlobeAutoRotate === 'function') window.setGlobeAutoRotate(true); } catch(e) {}
+    if (typeof window.setActivityFilter === 'function') window.setActivityFilter(null);
+    smoothResizeMap();
+  }
+
+  /* Keep the panel highlight in sync with the in-globe back button:
+     if the user clicks the top-center "← العودة للكرة الأرضية" while
+     the panel is open, drop the active-card glow too. */
+  const _topBackBtn = document.getElementById('backBtn');
+  if (_topBackBtn) {
+    _topBackBtn.addEventListener('click', () => {
+      listEl.querySelectorAll('.is-launching').forEach(c => c.classList.remove('is-launching'));
+    });
+  }
+
+  openBtn.addEventListener('click', openPanel);
+  closeBtn.addEventListener('click', closePanel);
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && document.body.classList.contains('viewing-activities')) closePanel();
+  });
+
+  /* Initial render */
+  rerenderAll();
+}
+
+map.on('error', (ev) => {
+  console.error('Map error:', ev);
+});
+</script>
+</body>
+</html>
