@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>وثيقة البنية التحتية — مجمع الملك سلمان العالمي للغة العربية</title>
+<style>
+  :root {
+    --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #fff; --panel: #f8fafc;
+    --accent: #4338ca; --gold: #c9a84c;
+    --pass: #15803d; --pass-bg: #dcfce7;
+    --warn: #b45309; --warn-bg: #fef3c7;
+    --na: #475569; --na-bg: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--panel); color: var(--ink); }
+  body { font-family: "Tajawal", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.85; font-size: 15px; }
+  .page { max-width: 880px; margin: 0 auto; background: var(--bg); padding: 48px 56px; box-shadow: 0 0 0 1px var(--line); }
+  h1, h2 { color: var(--ink); line-height: 1.3; margin: 0 0 12px; }
+  h1 { font-size: 30px; }
+  h2 { font-size: 20px; margin-top: 36px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  p, li { color: var(--ink); }
+  ul { padding-right: 22px; padding-left: 0; }
+  li { margin-bottom: 4px; }
+  code, pre { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font-family: "SF Mono", Consolas, Menlo, monospace; direction: ltr; }
+  code { padding: 1px 5px; font-size: 12.5px; display: inline-block; }
+  pre { padding: 12px 16px; overflow-x: auto; font-size: 12px; line-height: 1.6; margin: 10px 0; text-align: left; }
+
+  .cover { border-top: 6px solid var(--accent); padding: 18px 0 28px; margin-bottom: 12px; border-bottom: 1px solid var(--line); }
+  .eyebrow { letter-spacing: 2px; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 12px; }
+  .cover h1 { font-size: 32px; }
+  .cover .subtitle { font-size: 15px; color: var(--muted); margin-top: 4px; }
+  .meta-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 32px;
+    margin-top: 22px; padding: 16px 20px; background: var(--panel);
+    border-right: 4px solid var(--gold); border-radius: 4px;
+  }
+  .meta-grid .label { font-size: 11px; letter-spacing: 1px; color: var(--muted); }
+  .meta-grid .value { font-weight: 700; font-size: 14.5px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
+  th, td { text-align: right; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-weight: 700; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--line); }
+  td.path { font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 12px; direction: ltr; text-align: left; white-space: nowrap; color: var(--accent); font-weight: 700; }
+
+  .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+  .badge.pass { background: var(--pass-bg); color: var(--pass); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.na   { background: var(--na-bg);   color: var(--na); }
+
+  .note { background: var(--panel); border-right: 4px solid var(--accent); padding: 12px 16px; margin: 14px 0; border-radius: 4px 0 0 4px; font-size: 14px; }
+
+  .tree { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px 18px; font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 12.5px; line-height: 1.8; direction: ltr; text-align: left; color: var(--ink); overflow-x: auto; }
+  .tree .dir  { color: var(--accent); font-weight: 700; }
+  .tree .file { color: var(--ink); }
+  .tree .note { background: none; border: none; padding: 0; margin: 0; font-size: 12px; color: var(--muted); font-family: inherit; direction: ltr; display: inline; }
+
+  footer.report-footer { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+
+  @media print {
+    body { background: #fff; font-size: 12pt; }
+    .page { box-shadow: none; padding: 0; max-width: 100%; }
+    h2, table, .note, .tree { page-break-inside: avoid; break-inside: avoid; }
+    .cover { page-break-after: always; break-after: page; }
+  }
+  @media (max-width: 720px) {
+    .page { padding: 24px 18px; }
+    .meta-grid { grid-template-columns: 1fr; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="cover">
+    <div class="eyebrow">وثيقة البنية التحتية</div>
+    <h1>البنية التحتية للمشروع</h1>
+    <div class="subtitle">مجمع الملك سلمان العالمي للغة العربية — الموقع العام + لوحة التحكم الإدارية</div>
+    <div class="meta-grid">
+      <div><div class="label">المشروع</div><div class="value">المجمع — كرة أرضية + لوحة تحكم</div></div>
+      <div><div class="label">الوثيقة</div><div class="value">البنية التحتية</div></div>
+      <div><div class="label">التاريخ</div><div class="value">5 مايو 2026</div></div>
+      <div><div class="label">المرحلة</div><div class="value">ما قبل الإطلاق</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. مكونات المشروع</h2>
+    <table>
+      <thead><tr><th>المكوّن</th><th>الوصف</th><th>الجمهور</th></tr></thead>
+      <tbody>
+        <tr><td>الموقع العام</td><td>صفحة واحدة بكرة أرضية تفاعلية تعرض أنشطة المجمع حول العالم</td><td>الزوار العامون</td></tr>
+        <tr><td>لوحة التحكم</td><td>واجهة إدارية لإضافة الأنشطة وتعديلها وحذفها ونشرها</td><td>فريق المجمع فقط</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>2. إدارة المحتوى</h2>
+    <ul>
+      <li>يتحكم فريق المجمع في محتوى الموقع بالكامل عبر لوحة التحكم دون أي تدخل تقني.</li>
+      <li>يمكن حفظ النشاط كمسوّدة ثم نشره لاحقاً — لا يظهر على الموقع العام حتى يُنشر.</li>
+      <li>التغييرات المنشورة تنعكس فوراً على الموقع.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>3. الاستضافة والأمان</h2>
+    <ul>
+      <li>يعمل المشروع على خادم Node.js يخدم الموقع العام ولوحة التحكم معاً.</li>
+      <li>NGINX يعمل أمام خادم Node.js كبوابة دخول ويتولى توجيه الطلبات إليه.</li>
+      <li>لوحة التحكم محمية بمصادقة ومستبعدة من محركات البحث.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>4. متطلبات الخادم الافتراضي (VPS)</h2>
+    <table>
+      <thead><tr><th>المواصفة</th><th>الحد الأدنى المطلوب</th></tr></thead>
+      <tbody>
+        <tr><td>نظام التشغيل</td><td>Ubuntu 22.04 LTS</td></tr>
+        <tr><td>المعالج (CPU)</td><td>2 vCPU</td></tr>
+        <tr><td>الذاكرة (RAM)</td><td>4 GB</td></tr>
+        <tr><td>التخزين</td><td>80 GB SSD</td></tr>
+        <tr><td>النطاق الترددي</td><td>4 TB / شهر</td></tr>
+        <tr><td>عنوان IP</td><td>عنوان IPv4 ثابت مخصص</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>5. المنافذ المفتوحة واتجاه حركة البيانات</h2>
+    <p>يُرجى التأكد من أن جدار الحماية الخاص بالمجمع — إن وُجد — يسمح بحركة البيانات الواردة والصادرة وفق الجدول التالي:</p>
+    <table>
+      <thead><tr><th>المنفذ</th><th>البروتوكول</th><th>الاتجاه</th><th>الغرض</th></tr></thead>
+      <tbody>
+        <tr><td>80</td><td>HTTP</td><td>وارد</td><td>إعادة التوجيه التلقائي إلى HTTPS</td></tr>
+        <tr><td>443</td><td>HTTPS</td><td>وارد</td><td>حركة المرور العامة عبر NGINX</td></tr>
+        <tr><td>22</td><td>SSH</td><td>وارد — مقيَّد بعناوين IP المخوَّلة فقط</td><td>الوصول الإداري للخادم</td></tr>
+        <tr><td>3000 (داخلي)</td><td>HTTP</td><td>داخلي فقط — غير مكشوف للخارج</td><td>خادم Node.js يستقبل الطلبات من NGINX</td></tr>
+        <tr><td>كل المنافذ</td><td>—</td><td>صادر</td><td>تحديثات الحزم واتصالات SSL</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>6. بيانات الوصول إلى الخادم</h2>
+    <p>لإتمام عملية الإعداد والنشر، يحتاج الفريق التقني إلى بيانات الوصول التالية من المجمع:</p>
+    <ul>
+      <li>عنوان IP الثابت للخادم.</li>
+      <li>اسم المستخدم وكلمة المرور أو مفتاح SSH للوصول إلى الخادم.</li>
+      <li>أي صلاحيات إدارية مطلوبة (sudo) لتثبيت البرامج وضبط الإعدادات.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. النطاق وشهادة SSL</h2>
+    <ul>
+      <li>يوفر المجمع اسم النطاق ويوجّه سجل DNS الرئيسي (A Record) إلى عنوان IP الثابت للخادم.</li>
+      <li>شهادة SSL مقدَّمة من المجمع وتُثبَّت على الخادم.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>7. النشر والتسليم</h2>
+    <ul>
+      <li>الكود مخزَّن في مستودع Git خاص يُسلَّم للمجمع عند الانتهاء.</li>
+      <li>النشر يتم عبر سحب آخر إصدار من المستودع على الخادم وإعادة تشغيل خادم Node.js.</li>
+      <li>يُوثَّق إجراء النشر الكامل ويُسلَّم ضمن حزمة التسليم النهائية.</li>
+    </ul>
+  </section>
+
+  <footer class="report-footer">
+    <div>وثيقة البنية التحتية</div>
+    <div>5 مايو 2026</div>
+  </footer>
+</div>
+</body>
+</html>
