@@ -1,0 +1,61 @@
+{
+  "common": {
+    "loading": "Loading",
+    "clickToEnter": "Click to enter",
+    "backToHome": "Back to home",
+    "backToGlobe": "← Back to globe"
+  },
+  "language": {
+    "switch": "عربي",
+    "label": "Language"
+  },
+  "globe": {
+    "autoRotate": "● Auto rotate",
+    "rotationStopped": "○ Rotation paused"
+  },
+  "stats": {
+    "totalActivities": "Total Activities",
+    "totalActivitiesUnit": "int'l activities",
+    "countries": "Participating Countries",
+    "countriesUnit": "countries",
+    "organizations": "International Orgs",
+    "organizationsUnit": "organizations",
+    "events": "Events & Conferences",
+    "eventsUnit": "events",
+    "education": "Education & Training",
+    "educationUnit": "programs",
+    "partnerships": "Partnerships & Agreements",
+    "partnershipsUnit": "agreements",
+    "research": "Research & Books",
+    "researchUnit": "research & books",
+    "regions": "Regional Coverage",
+    "regionsUnit": "geographic regions",
+    "regionsTarget": "4 target continents",
+    "continents": "continents",
+    "entities": "entities",
+    "ofEntities": "% of entities",
+    "ofTotal": "% of total"
+  },
+  "activities": {
+    "title": "Academy Activities",
+    "subtitle": "Explore and filter all international activities",
+    "searchPlaceholder": "Search activities, conferences, agreements...",
+    "activityType": "Activity Type",
+    "subtype": "Subtype",
+    "location": "Location",
+    "allLocations": "All locations",
+    "year": "Year",
+    "allYears": "All years",
+    "displayMode": "Display mode",
+    "noGroup": "No grouping",
+    "byYear": "By year",
+    "byEntity": "By entity",
+    "byType": "By type",
+    "matchingActivities": "matching activities",
+    "reset": "Reset",
+    "close": "Close",
+    "noResults": "No results",
+    "noResultsSub": "Try adjusting your search or filter criteria",
+    "toggleBtn": "Academy Activities"
+  }
+}

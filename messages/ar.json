@@ -1,0 +1,61 @@
+{
+  "common": {
+    "loading": "جارٍ التحميل",
+    "clickToEnter": "انقر للدخول",
+    "backToHome": "العودة للشاشة الرئيسية",
+    "backToGlobe": "← العودة للكرة الأرضية"
+  },
+  "language": {
+    "switch": "English",
+    "label": "لغة الموقع"
+  },
+  "globe": {
+    "autoRotate": "● دوران تلقائي",
+    "rotationStopped": "○ دوران متوقف"
+  },
+  "stats": {
+    "totalActivities": "إجمالي الأنشطة",
+    "totalActivitiesUnit": "نشاط دولي",
+    "countries": "الدول المشاركة",
+    "countriesUnit": "دولة",
+    "organizations": "المنظمات الدولية",
+    "organizationsUnit": "منظمة",
+    "events": "الفعاليات والمؤتمرات",
+    "eventsUnit": "فعالية",
+    "education": "التعليم والتدريب",
+    "educationUnit": "برنامج",
+    "partnerships": "الشراكات والاتفاقيات",
+    "partnershipsUnit": "اتفاقية",
+    "research": "البحوث العلمية والكتب",
+    "researchUnit": "بحث وكتاب",
+    "regions": "التغطية الإقليمية",
+    "regionsUnit": "منطقة جغرافية",
+    "regionsTarget": "4 قارات مستهدفة",
+    "continents": "قارات",
+    "entities": "جهة",
+    "ofEntities": "% من الجهات",
+    "ofTotal": "% من الإجمالي"
+  },
+  "activities": {
+    "title": "أنشطة المجمع",
+    "subtitle": "استكشاف وتصفية كامل الأنشطة الدولية",
+    "searchPlaceholder": "ابحث عن نشاط، مؤتمر، اتفاقية...",
+    "activityType": "نوع النشاط",
+    "subtype": "التصنيف الفرعي",
+    "location": "الموقع",
+    "allLocations": "جميع المواقع",
+    "year": "السنة",
+    "allYears": "جميع السنوات",
+    "displayMode": "طريقة العرض",
+    "noGroup": "بدون تجميع",
+    "byYear": "حسب السنة",
+    "byEntity": "حسب الجهة",
+    "byType": "حسب النوع",
+    "matchingActivities": "نشاط مطابق",
+    "reset": "إعادة تعيين",
+    "close": "إغلاق",
+    "noResults": "لا توجد نتائج",
+    "noResultsSub": "جرّب تغيير معايير البحث أو التصفية",
+    "toggleBtn": "أنشطة المجمع"
+  }
+}
