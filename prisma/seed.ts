@@ -188,8 +188,8 @@ async function main() {
   console.log("→ seeding organizations");
   const orgIdByCode = new Map<string, number>();
   for (const o of raw.organizations ?? []) {
-          //@ts-expect-error type
-    const countryId = o.country ? countryIdByArName.get(o.country as any) : undefined;
+    //@ts-expect-error type error
+    const countryId = o.country ? countryIdByArName.get(o.country) : undefined;
     const created = await prisma.organization.create({
       data: {
         code: o.code,
