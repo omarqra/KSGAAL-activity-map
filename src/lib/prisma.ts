@@ -1,9 +1,17 @@
-import { PrismaClient } from '../generated/prisma/client'
+import { PrismaClient } from "@prisma/client";
 
-type PrismaGlobal = { prisma?: InstanceType<typeof PrismaClient> }
-const globalForPrisma = globalThis as unknown as PrismaGlobal
+declare global {
+  // eslint-disable-next-line no-var
+  var __prisma: PrismaClient | undefined;
+}
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const prisma: InstanceType<typeof PrismaClient> = globalForPrisma.prisma ?? new (PrismaClient as any)()
+export const prisma =
+  global.__prisma ??
+  new PrismaClient({
+    log:
+      process.env.NODE_ENV === "development" ? ["warn", "error"] : ["error"],
+  });
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (process.env.NODE_ENV !== "production") {
+  global.__prisma = prisma;
+}

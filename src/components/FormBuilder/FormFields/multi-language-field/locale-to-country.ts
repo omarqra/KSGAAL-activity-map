@@ -1,0 +1,25 @@
+const localeToCountry: Record<string, string> = {
+  en: "US",
+  ar: "SA",
+  ja: "JP",
+  fr: "FR",
+  de: "DE",
+  es: "ES",
+  it: "IT",
+  ru: "RU",
+  zh: "CN",
+  ko: "KR",
+  pt: "PT",
+  nl: "NL",
+  sv: "SE",
+  no: "NO",
+  da: "DK",
+  fi: "FI",
+  tr: "TR",
+  id: "ID",
+  ms: "MY",
+  th: "TH",
+  vi: "VN",
+};
+
+export default localeToCountry;

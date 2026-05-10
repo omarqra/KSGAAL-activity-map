@@ -1,53 +1,204 @@
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  passwordHash   String
+  name           String?
+  role           String    @default("admin")
+  isActive       Boolean   @default(true)
+  lastLoginAt    DateTime?
+  passwordChangedAt DateTime @default(now())
+  failedLoginCount Int      @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  loginAttempts       LoginAttempt[]
+  otpCodes            OtpCode[]
+  passwordResetTokens PasswordResetToken[]
+  auditLogs           AuditLog[]
+  passwordHistory     PasswordHistory[]
+
+  @@index([email])
+  @@index([lockedUntil])
+}
+
+model PasswordHistory {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  passwordHash String
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  userId    Int?
+  action    String
+  resource  String?
+  resourceId String?
+  ip        String?
+  userAgent String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@index([resource, createdAt])
+}
+
+model OtpCode {
+  id         Int      @id @default(autoincrement())
+  userId     Int
+  codeHash   String
+  expiresAt  DateTime
+  attempts   Int      @default(0)
+  consumedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model PasswordResetToken {
+  id         Int       @id @default(autoincrement())
+  userId     Int
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model LoginAttempt {
+  id         Int      @id @default(autoincrement())
+  email      String
+  ip         String
+  userAgent  String?
+  success    Boolean
+  userId     Int?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([ip, createdAt])
+  @@index([email, createdAt])
 }
 
 model Country {
-  id         String     @id @default(cuid())
-  code       String     @unique
-  name       String
-  nameEn     String?
-  short      String?
-  capital    String?
-  lat        Float
-  lng        Float
-  activities Activity[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  id             Int      @id @default(autoincrement())
+  code           String   @unique
+  nameAr         String
+  nameEn         String
+  short          String
+  capital        String?
+  lat            Float
+  lng            Float
+  hasDetailedMap Boolean  @default(false)
+  region         String   @default("other")
+  status         String   @default("active")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  activities    Activity[]
+  organizations Organization[]
+
+  @@index([region])
+  @@index([status])
 }
 
 model Organization {
-  id         String     @id @default(cuid())
-  code       String     @unique
-  name       String
-  nameEn     String?
-  short      String?
-  city       String?
-  country    String?
-  lat        Float
-  lng        Float
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  nameAr    String
+  nameEn    String
+  short     String
+  kind      String
+  status    String   @default("active")
+  city      String?
+  lat       Float
+  lng       Float
+  countryId Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  country    Country?   @relation(fields: [countryId], references: [id], onDelete: SetNull)
   activities Activity[]
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+
+  @@index([countryId])
+  @@index([kind])
+  @@index([status])
+}
+
+model ActivityType {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  labelAr   String
+  labelEn   String
+  color     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subtypes   ActivitySubtype[]
+  activities Activity[]
+}
+
+model ActivitySubtype {
+  id           Int      @id @default(autoincrement())
+  parentTypeId Int
+  labelAr      String
+  labelEn      String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  parentType ActivityType @relation(fields: [parentTypeId], references: [id], onDelete: Cascade)
+  activities Activity[]
+
+  @@unique([parentTypeId, labelAr])
+  @@index([parentTypeId])
 }
 
 model Activity {
-  id             String        @id @default(cuid())
+  id             Int       @id @default(autoincrement())
   name           String
-  nameEn         String?
-  type           String
-  subtype        String?
-  date           String?
-  published      Boolean       @default(true)
-  country        Country?      @relation(fields: [countryId], references: [id])
-  countryId      String?
-  organization   Organization? @relation(fields: [organizationId], references: [id])
-  organizationId String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  dateText       String?
+  dateParsed     DateTime?
+  typeId         Int
+  subtypeId      Int?
+  countryId      Int?
+  organizationId Int?
+  lat            Float?
+  lng            Float?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  type         ActivityType     @relation(fields: [typeId], references: [id])
+  subtype      ActivitySubtype? @relation(fields: [subtypeId], references: [id], onDelete: SetNull)
+  country      Country?         @relation(fields: [countryId], references: [id], onDelete: SetNull)
+  organization Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([typeId])
+  @@index([subtypeId])
+  @@index([countryId])
+  @@index([organizationId])
+  @@index([dateParsed])
 }

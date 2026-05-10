@@ -1,46 +1,94 @@
-import type { Metadata } from 'next'
-import { NextIntlClientProvider } from 'next-intl'
-import { getMessages } from 'next-intl/server'
-import { notFound } from 'next/navigation'
-import { routing } from '@/i18n/routing'
+import type { Metadata } from "next";
+import localFont from "next/font/local";
+import { notFound } from "next/navigation";
+
+import { getMessages } from "next-intl/server";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { ProgressBarProvider } from "react-transition-progress";
+import { z } from "zod";
+
+import { ConfirmDialogProvider } from "@/components/dialog";
+import { FontSync } from "@/components/font-sync";
+import { Toaster } from "@/components/ui/sonner";
+import { env } from "@/env/client";
+import IntlClientProvider from "@/i18n/intl-client-provider";
+
+import "../globals.css";
+
+const CairoFont = localFont({
+  src: "../fonts/Cairo-Variable.ttf",
+  variable: "--font-cairo",
+});
+
+const MajallaFont = localFont({
+  src: "../../font/majalla.ttf",
+  variable: "--font-majalla",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: 'مجمع الملك سلمان العالمي للغة العربية — أنشطة حول العالم',
-  description: 'استكشف أنشطة ومبادرات مجمع الملك سلمان العالمي للغة العربية حول العالم على خريطة تفاعلية.',
-}
+  title: {
+    default: "RS4IT Next Template",
+    template: "%s | RS4IT Next Template",
+  },
+  alternates: {
+    canonical: env.NEXT_PUBLIC_FRONTEND_URL,
+    languages: {
+      en: `${env.NEXT_PUBLIC_FRONTEND_URL}/en`,
+      ar: `${env.NEXT_PUBLIC_FRONTEND_URL}/ar`,
+    },
+  },
+  description: "RS4IT Next Template",
+};
 
-export function generateStaticParams() {
-  return routing.locales.map(locale => ({ locale }))
-}
-
-export default async function LocaleLayout({
+export default async function RootLayout({
   children,
   params,
-}: {
-  children: React.ReactNode
-  params: Promise<{ locale: string }>
-}) {
-  const { locale } = await params
-
-  if (!routing.locales.includes(locale as 'ar' | 'en')) {
-    notFound()
-  }
-
-  const messages = await getMessages()
-  const isRtl = locale === 'ar'
+}: LayoutProps<"/[locale]">) {
+  const { locale } = await params;
+  const sanitizedLocale = z.enum(["ar", "en"]).safeParse(locale).data;
+  if (!sanitizedLocale) notFound();
+  const messages = await getMessages({
+    locale: sanitizedLocale,
+  });
 
   return (
-    <html lang={locale} dir={isRtl ? 'rtl' : 'ltr'}>
-      <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
-        <link rel="manifest" href="/site.webmanifest" />
-      </head>
-      <body>
-        <NextIntlClientProvider messages={messages}>
-          {children}
-        </NextIntlClientProvider>
+    <html
+      lang={sanitizedLocale}
+      className="light"
+      suppressHydrationWarning
+      dir={sanitizedLocale === "ar" ? "rtl" : "ltr"}
+    >
+      <body
+        className={`${MajallaFont.variable} ${CairoFont.variable} antialiased`}
+      >
+        <FontSync />
+        <ConfirmDialogProvider>
+          <NuqsAdapter>
+            <IntlClientProvider messages={messages} locale={sanitizedLocale}>
+              <Toaster
+                toastOptions={{
+                  classNames: {
+                    loading:
+                      "bg-background! text-foreground! rounded-lg! shadow-lg! border-none!",
+                    error:
+                      "bg-destructive! !text-white rounded-lg! shadow-lg! border-none!",
+                    success:
+                      "bg-primary! text-primary-foreground! rounded-lg! shadow-lg! border-none!",
+                    description: "text-foreground! rounded-lg! border-none!",
+                    title: "rounded-lg! border-none!",
+                    icon: "rounded-lg! border-none!",
+                    warning:
+                      "bg-yellow-500! text-yellow-900! rounded-lg! shadow-lg! border-none!",
+                  },
+                }}
+              />
+
+              <ProgressBarProvider>{children}</ProgressBarProvider>
+            </IntlClientProvider>
+          </NuqsAdapter>
+        </ConfirmDialogProvider>
       </body>
     </html>
-  )
+  );
 }
