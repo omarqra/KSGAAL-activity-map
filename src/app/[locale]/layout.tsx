@@ -28,8 +28,8 @@ const MajallaFont = localFont({
 
 export const metadata: Metadata = {
   title: {
-    default: "RS4IT Next Template",
-    template: "%s | RS4IT Next Template",
+    default: "Dashboard",
+    template: "%s | Dashboard",
   },
   alternates: {
     canonical: env.NEXT_PUBLIC_FRONTEND_URL,
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
       ar: `${env.NEXT_PUBLIC_FRONTEND_URL}/ar`,
     },
   },
-  description: "RS4IT Next Template",
+  description: "Dashboard",
 };
 
 export default async function RootLayout({
