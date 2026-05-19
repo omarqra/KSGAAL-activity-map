@@ -221,6 +221,44 @@
     </ul>
   </section>
 
+  <section>
+    <h2>10. تقنيات المنصة (Application Stack)</h2>
+    <p>يوضِّح هذا القسم التقنيات المعتمدة في بناء المنصة، شاملاً محرك قاعدة البيانات والـ Application Stack الكاملة.</p>
+
+    <h3 style="font-size:16px; margin-top:18px;">أولاً: محرك قاعدة البيانات</h3>
+    <table>
+      <thead><tr><th>البند</th><th>التفاصيل</th></tr></thead>
+      <tbody>
+        <tr><td>نوع قاعدة البيانات</td><td>Relational (علائقية)</td></tr>
+        <tr><td>المحرك (Engine)</td><td>PostgreSQL</td></tr>
+        <tr><td>طريقة الوصول (ORM)</td><td>Prisma ORM</td></tr>
+        <tr><td>بروتوكول الاتصال</td><td><code>DATABASE_URL (postgresql://)</code></td></tr>
+        <tr><td>الكيانات الرئيسية</td><td>Users · Organizations · Countries · Activities · Activity Types · Audit Logs</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="font-size:16px; margin-top:18px;">ثانياً: Application Stack</h3>
+    <table>
+      <thead><tr><th>الطبقة</th><th>التقنية</th><th>الإصدار</th></tr></thead>
+      <tbody>
+        <tr><td>Runtime</td><td>Node.js (Next.js server)</td><td>—</td></tr>
+        <tr><td>Frontend Framework</td><td>Next.js (App Router)</td><td>16.0.10</td></tr>
+        <tr><td>UI Library</td><td>React</td><td>19.2.0</td></tr>
+        <tr><td>Language</td><td>TypeScript</td><td>5.x</td></tr>
+        <tr><td>Styling</td><td>Tailwind CSS</td><td>4.x</td></tr>
+        <tr><td>ORM</td><td>Prisma</td><td>6.19.3</td></tr>
+        <tr><td>قاعدة البيانات</td><td>PostgreSQL</td><td>—</td></tr>
+        <tr><td>Validation</td><td>Zod</td><td>4.1.12</td></tr>
+        <tr><td>Animation</td><td>Framer Motion</td><td>12.23.24</td></tr>
+        <tr><td>3D Rendering</td><td>Three.js</td><td>0.184.0</td></tr>
+        <tr><td>Interactive Maps</td><td>MapLibre GL</td><td>5.24.0</td></tr>
+        <tr><td>Authentication</td><td>JWT (jose) + bcryptjs</td><td>jose 6.2.3</td></tr>
+        <tr><td>Forms</td><td>React Hook Form</td><td>7.66.1</td></tr>
+      </tbody>
+    </table>
+    <div class="note">جميع التقنيات المذكورة مفتوحة المصدر. إصدارات الـ runtime تُحدَّد عند النشر حسب بيئة الخادم.</div>
+  </section>
+
   <footer class="report-footer">
     <div>وثيقة البنية التحتية</div>
     <div>5 مايو 2026</div>
