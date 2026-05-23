@@ -1,0 +1,24 @@
+# `kubectl apply -k k8s/` applies everything below.
+#
+# NOTE: secret.example.yaml is intentionally EXCLUDED. The real Secret must
+# already exist in the cluster before `apply -k` is run — create it from
+# Azure Key Vault, Azure DevOps secret variables, or `kubectl create secret`.
+# See k8s/README.md.
+#
+# migration-job.yaml is also excluded — apply it separately, on demand, and
+# wait for it to complete before rolling the Deployment.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: ksgaal
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - deployment.yaml
+  - service.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: ksgaal-activity-map

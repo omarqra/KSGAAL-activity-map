@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Production overlay — namespace: ksgaal-production
+# Apply with: kubectl apply -k k8s/overlays/production/
+# Validate with: kubectl kustomize k8s/overlays/production/
+
+namespace: ksgaal-production
+
+resources:
+  - ../../base
+  - namespace.yaml
+
+patches:
+  - path: configmap-patch.yaml
+  - path: ingress-patch.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: ksgaal-activity-map
+  environment: production

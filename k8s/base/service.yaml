@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: ksgaal-activity-map
+  # namespace injected by kustomize overlay
+  labels:
+    app.kubernetes.io/name: ksgaal-activity-map
+    app.kubernetes.io/part-of: ksgaal-activity-map
+spec:
+  type: ClusterIP
+  selector:
+    app: ksgaal-activity-map
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000

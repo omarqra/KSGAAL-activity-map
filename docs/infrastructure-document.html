@@ -80,7 +80,7 @@
     <div class="meta-grid">
       <div><div class="label">المشروع</div><div class="value">المجمع — كرة أرضية + لوحة تحكم</div></div>
       <div><div class="label">الوثيقة</div><div class="value">البنية التحتية</div></div>
-      <div><div class="label">التاريخ</div><div class="value">5 مايو 2026</div></div>
+      <div><div class="label">التاريخ</div><div class="value">21 مايو 2026</div></div>
       <div><div class="label">المرحلة</div><div class="value">ما قبل الإطلاق</div></div>
     </div>
   </section>
@@ -123,102 +123,152 @@
 
   <section>
     <h2>4. الاستضافة والأمان والإتاحة العالية (High Availability)</h2>
-    <p>صُمِّمت بنية الإنتاج لتكون عالية الإتاحة (HA)، بحيث لا يتسبب تعطُّل أي مكوِّن منفرد في توقُّف الموقع:</p>
+    <p>صُمِّمت بنية الإنتاج لتكون عالية الإتاحة (HA) مبنيةً على Kubernetes (Azure AKS)، بحيث لا يتسبب تعطُّل أي مكوِّن منفرد في توقُّف الموقع:</p>
     <ul>
-      <li>يعمل المشروع داخل حاويات Docker تُدار عبر Docker Compose على كل خادم.</li>
-      <li><b>موزِّع أحمال (Load Balancer):</b> طبقة NGINX/HAProxy أمام التطبيق توزّع الطلبات بين خادمين على الأقل وتُجري فحوصات صحة دورية (Health Checks) لاستبعاد أي خادم متعطِّل تلقائياً.</li>
-      <li><b>تعدُّد نسخ التطبيق (App Replicas):</b> نسختان على الأقل من حاوية التطبيق تعملان في وضع Active-Active على خادمَي تطبيق منفصلين.</li>
-      <li><b>قاعدة بيانات مع نسخة احتياطية حيّة (Replica):</b> قاعدة بيانات أساسية (Primary) ونسخة ثانوية (Replica) مع آلية تحويل تلقائي (Automatic Failover) عند تعطُّل الأساسية.</li>
-      <li><b>نسخ احتياطي يومي (Backups):</b> نسخ احتياطية مشفَّرة لقاعدة البيانات والملفات تُحفَظ خارج الخادم مع الاحتفاظ بـ 30 يوماً على الأقل.</li>
-      <li><b>عزل المنافذ:</b> NGINX هو نقطة الدخول الوحيدة المكشوفة للإنترنت — لا يُكشف أي منفذ داخلي للخارج.</li>
-      <li><b>مراقبة (Monitoring):</b> مراقبة مستمرة لزمن الاستجابة، استهلاك الموارد، وحالة الحاويات مع تنبيهات فورية.</li>
+      <li>يعمل التطبيق داخل حاويات Docker تُدار بواسطة <b>Kubernetes (Azure AKS)</b>.</li>
+      <li><b>NGINX Ingress Controller:</b> نقطة الدخول الوحيدة المكشوفة للإنترنت داخل الـ cluster؛ يستقبل حركة HTTPS ويوزِّعها على pods التطبيق ويُجري فحوصات صحة دورية لاستبعاد أي pod متعطِّل تلقائياً.</li>
+      <li><b>تعدُّد نسخ التطبيق (Replicas):</b> نسختان على الأقل من pods التطبيق تعملان في وضع Active-Active داخل K8s Deployment مع استراتيجية RollingUpdate — لا يُزال أي pod قديم إلا بعد أن يصبح الجديد جاهزاً.</li>
+      <li><b>فحوصات الصحة (Health Probes):</b> كل pod يكشف مسارَين للـ K8s:
+        <ul>
+          <li><code>/api/health/live</code> — Liveness Probe: يتحقق من أن العملية حية؛ يُعيد K8s تشغيل الـ pod إذا فشل.</li>
+          <li><code>/api/health/ready</code> — Readiness Probe: يتحقق من اتصال قاعدة البيانات؛ يُوقف K8s توجيه الطلبات إلى الـ pod حتى ينجح.</li>
+        </ul>
+      </li>
+      <li><b>قاعدة البيانات:</b> Azure Database for PostgreSQL Flexible Server كخدمة مُدارة خارج الـ cluster — تشمل نسخاً احتياطية يومية مدمجة وتحويلاً تلقائياً (Automatic Failover) عند التعطُّل.</li>
+      <li><b>نسخ احتياطي يومي (Backups):</b> تُدار بالكامل من Azure — نسخ احتياطية مشفَّرة تُحفَظ 30 يوماً على الأقل.</li>
+      <li><b>عزل البيئات:</b> لكل بيئة (staging/production) namespace Kubernetes مستقل مع secrets وconfigmap خاصَّين بها.</li>
+      <li><b>مراقبة (Monitoring):</b> مراقبة مستمرة لزمن الاستجابة، استهلاك الموارد، وحالة الـ pods مع تنبيهات فورية.</li>
       <li>لوحة التحكم محمية بمصادقة قوية ومستبعدة من محركات البحث.</li>
     </ul>
     <p>هدف مستوى الخدمة (SLA): إتاحة <b>99.9%</b> شهرياً، مع زمن استرجاع (RTO) أقل من 15 دقيقة وزمن فقد بيانات (RPO) أقل من 5 دقائق.</p>
   </section>
 
   <section>
-    <h2>5. متطلبات الخوادم الافتراضية (VPS)</h2>
-    <p>تتطلب البنية الكاملة <b>عدة خوادم</b> لكل بيئة لضمان الإتاحة العالية. الجدول أدناه يوضِّح المواصفات المطلوبة لكل خادم:</p>
+    <h2>5. متطلبات البنية التحتية السحابية (Azure)</h2>
+    <p>تعتمد البنية على خدمات Azure المُدارة بدلاً من خوادم VPS مستقلة، مما يُقلِّل عبء الإدارة ويضمن الإتاحة العالية:</p>
 
-    <h3 style="font-size:16px; margin-top:18px;">بيئة الإنتاج (Production) — 4 خوادم</h3>
+    <h3 style="font-size:16px; margin-top:18px;">موارد Azure المطلوبة</h3>
     <table>
-      <thead><tr><th>الدور</th><th>العدد</th><th>CPU</th><th>RAM</th><th>التخزين</th></tr></thead>
+      <thead><tr><th>الخدمة</th><th>الغرض</th><th>المواصفات المقترحة</th></tr></thead>
       <tbody>
-        <tr><td>موزِّع الأحمال (Load Balancer)</td><td>1</td><td>2 vCPU</td><td>2 GB</td><td>40 GB SSD</td></tr>
-        <tr><td>خوادم التطبيق (App Nodes)</td><td>2</td><td>2 vCPU</td><td>4 GB</td><td>80 GB SSD</td></tr>
-        <tr><td>قاعدة البيانات (Primary + Replica)</td><td>2 </td><td>2 vCPU</td><td>4 GB</td><td>100 GB SSD</td></tr>
+        <tr><td>Azure Kubernetes Service (AKS)</td><td>تشغيل وإدارة حاويات التطبيق</td><td>Cluster واحد — node pool للإنتاج: نوع <code>Standard_D2s_v3</code> (2 vCPU / 8 GB) × 2 عقدة على الأقل؛ node pool للـ staging: عقدة واحدة من نفس النوع</td></tr>
+        <tr><td>Azure Container Registry (ACR)</td><td>تخزين صور Docker المبنية</td><td>Basic tier (يمكن ترقيته لـ Standard عند زيادة الحجم)</td></tr>
+        <tr><td>Azure Database for PostgreSQL — Flexible Server</td><td>قاعدة البيانات المُدارة خارج الـ cluster</td><td>Burstable B2s للـ staging؛ General Purpose D2ds_v4 للإنتاج — مع تفعيل High Availability و Auto-backup</td></tr>
+        <tr><td>Azure DevOps</td><td>CI/CD Pipelines لبناء الصور ونشرها تلقائياً</td><td>مستودع Git + Pipelines + Variable Groups للأسرار</td></tr>
       </tbody>
     </table>
 
-    <h3 style="font-size:16px; margin-top:18px;">بيئة التجربة (Staging) — خادم واحد</h3>
+    <h3 style="font-size:16px; margin-top:18px;">Kubernetes Namespaces</h3>
     <table>
-      <thead><tr><th>المواصفة</th><th>الحد الأدنى المطلوب</th></tr></thead>
+      <thead><tr><th>البيئة</th><th>Namespace</th><th>الغرض</th></tr></thead>
       <tbody>
-        <tr><td>الخوادم</td><td>خادم واحد يستضيف جميع الخدمات (لا يحتاج HA)</td></tr>
-        <tr><td>CPU</td><td>2 vCPU</td></tr>
-        <tr><td>RAM</td><td>4 GB</td></tr>
-        <tr><td>التخزين</td><td>80 GB SSD</td></tr>
+        <tr><td>بيئة التجربة</td><td class="path">ksgaal-staging</td><td>تشغيل نسخة التجربة بإعدادات وأسرار مستقلة</td></tr>
+        <tr><td>بيئة الإنتاج</td><td class="path">ksgaal-production</td><td>تشغيل نسخة الإنتاج بإعدادات وأسرار مستقلة</td></tr>
       </tbody>
     </table>
+    <div class="note">لا توجد خوادم VPS مستقلة — كل الحسابات تعمل داخل AKS على nodes يُديرها Azure تلقائياً. قاعدة البيانات PostgreSQL خارج الـ cluster تماماً كخدمة مُدارة.</div>
+  </section>
 
-    <h3 style="font-size:16px; margin-top:18px;">المتطلبات المشتركة لكل خادم</h3>
+  <section>
+    <h2>5.أ. بناء الحاويات (Docker)</h2>
+    <p>يُبنى التطبيق كصورة Docker متعددة المراحل (Multi-Stage Build) لتقليل الحجم النهائي وضمان عدم تسريب أدوات التطوير في بيئة الإنتاج:</p>
     <table>
+      <thead><tr><th>المرحلة</th><th>الغرض</th></tr></thead>
       <tbody>
-        <tr><td>نظام التشغيل</td><td>Ubuntu LTS (أحدث إصدار مدعوم)</td></tr>
-        <tr><td>النطاق الترددي</td><td>4 TB / شهر لكل خادم</td></tr>
-        <tr><td>عنوان IP</td><td>IPv4 ثابت مخصص لكل خادم + IP عام مشترك لموزِّع الأحمال</td></tr>
-        <tr><td>الشبكة الداخلية</td><td>شبكة خاصة (Private Network) بين خوادم بيئة الإنتاج</td></tr>
-        <tr><td>البرامج المطلوبة</td><td>Docker Engine، Docker Compose، Git</td></tr>
+        <tr><td><code>base</code></td><td>صورة <code>node:20-alpine</code> الأساسية مع <code>libc6-compat</code></td></tr>
+        <tr><td><code>deps</code></td><td>تثبيت حزم npm (<code>npm ci</code>) ونسخ ملفات Prisma لتوليد الـ client</td></tr>
+        <tr><td><code>builder</code></td><td>استقبال <code>NEXT_PUBLIC_*</code> كـ build-args وتشغيل <code>prisma generate</code> ثم <code>npm run build</code> — ينتج standalone output في <code>.next/standalone/</code></td></tr>
+        <tr><td><code>runner</code></td><td>صورة نهائية خفيفة تحتوي فقط على <code>.next/standalone</code> والأصول الثابتة — تعمل بمستخدم غير root (<code>nextjs:1001</code>)</td></tr>
       </tbody>
     </table>
+    <ul>
+      <li><b>Standalone Output:</b> يُفعَّل في <code>next.config.ts</code> بـ <code>output: "standalone"</code> — يُنتج <code>server.js</code> منفرداً لا يحتاج <code>node_modules</code> الكاملة عند التشغيل.</li>
+      <li><b>NEXT_PUBLIC_* build-time baking:</b> المتغيرات العامة (مثل <code>NEXT_PUBLIC_FRONTEND_URL</code>) تُحقن وقت البناء عبر <code>--build-arg</code>، لذا تُبنى صورة منفصلة لكل بيئة (staging ≠ production).</li>
+
+    </ul>
   </section>
 
   <section>
     <h2>6. المنافذ المفتوحة واتجاه حركة البيانات</h2>
-    <p>يُرجى التأكد من أن جدار الحماية الخاص بالمجمع — إن وُجد — يسمح بحركة البيانات الواردة والصادرة وفق الجدول التالي:</p>
+    <p>في بنية Kubernetes، نقطة الدخول الوحيدة للإنترنت هي <b>NGINX Ingress Controller</b> الذي يحمل عنوان IP عاماً واحداً. جميع المنافذ الداخلية تبقى داخل الـ cluster:</p>
     <table>
       <thead><tr><th>المنفذ</th><th>البروتوكول</th><th>الاتجاه</th><th>الغرض</th></tr></thead>
       <tbody>
-        <tr><td>80</td><td>HTTP</td><td>وارد — موزِّع الأحمال فقط</td><td>إعادة التوجيه التلقائي إلى HTTPS</td></tr>
-        <tr><td>443</td><td>HTTPS</td><td>وارد — موزِّع الأحمال فقط</td><td>حركة المرور العامة عبر NGINX/HAProxy</td></tr>
-        <tr><td>22</td><td>SSH</td><td>وارد — مقيَّد بعناوين IP المخوَّلة فقط</td><td>الوصول الإداري لجميع الخوادم</td></tr>
-        <tr><td>المنافذ الداخلية للتطبيق</td><td>HTTP</td><td>الشبكة الخاصة فقط بين موزِّع الأحمال وخوادم التطبيق</td><td>توزيع الطلبات على نسخ التطبيق</td></tr>
-        <tr><td>منفذ قاعدة البيانات</td><td>TCP</td><td>الشبكة الخاصة فقط بين خوادم التطبيق وقاعدة البيانات</td><td>اتصال التطبيق بقاعدة البيانات + المزامنة بين Primary و Replica</td></tr>
-        <tr><td>كل المنافذ</td><td>—</td><td>صادر</td><td>سحب صور Docker وتحديثات الحزم واتصالات SSL</td></tr>
+        <tr><td>80</td><td>HTTP</td><td>وارد — NGINX Ingress فقط</td><td>إعادة التوجيه التلقائي إلى HTTPS</td></tr>
+        <tr><td>443</td><td>HTTPS</td><td>وارد — NGINX Ingress فقط</td><td>حركة المرور العامة؛ TLS يُنهى عند الـ Ingress</td></tr>
+        <tr><td>3000</td><td>HTTP</td><td>داخلي — داخل الـ cluster فقط</td><td>منفذ التطبيق (Next.js) — لا يُكشف خارجياً</td></tr>
+        <tr><td>5432</td><td>TCP</td><td>صادر من الـ cluster إلى Azure PostgreSQL</td><td>اتصال التطبيق بقاعدة البيانات الخارجية المُدارة</td></tr>
+        <tr><td>كل المنافذ</td><td>—</td><td>صادر</td><td>سحب صور Docker من ACR، تحديثات الحزم، اتصالات SSL</td></tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <h2>7. بيانات الوصول إلى الخوادم</h2>
-    <p>لإتمام عملية الإعداد والنشر، يحتاج الفريق التقني إلى بيانات الوصول التالية من المجمع لكل خادم في كلا البيئتين (التجربة والإنتاج):</p>
+    <h2>7. متطلبات الوصول والإعداد</h2>
+    <p>لإتمام عملية الإعداد والنشر، يحتاج الفريق التقني إلى ما يلي من المجمع:</p>
     <ul>
-      <li>عناوين IP الثابتة لجميع الخوادم (موزِّع الأحمال + خوادم التطبيق + خوادم قاعدة البيانات).</li>
-      <li>اسم المستخدم وكلمة المرور أو مفاتيح SSH للوصول إلى كل خادم.</li>
-      <li>صلاحيات إدارية (sudo) لتثبيت البرامج وضبط الإعدادات وإعداد الشبكة الخاصة.</li>
-      <li>إعدادات الشبكة الخاصة (Private Network) التي تربط خوادم بيئة الإنتاج.</li>
+      <li>اشتراك Azure نشط مع صلاحية إنشاء موارد (Contributor أو Owner).</li>
+      <li>مشروع Azure DevOps مع صلاحية إنشاء Pipelines وVariable Groups وService Connections.</li>
+      <li>اسمَا نطاق الإنتاج والتجربة — سيزوِّد الفريق التقني المجمعَ بعنوان IP الـ Ingress Controller بعد اكتمال إعداد الـ cluster، ويتولى المجمع توجيه A Record كل نطاق إلى هذا العنوان من لوحة إدارة DNS الخاصة بهم.</li>
+      <li>ملفات شهادة SSL لكلا النطاقَين (ملف الشهادة، المفتاح الخاص، وسلسلة CA) — سيستلمها الفريق التقني ويثبِّتها كـ Kubernetes Secret على الـ Ingress Controller.</li>
+      <li>إعدادات SMTP (مضيف، منفذ، بيانات المصادقة) لإرسال رسائل OTP وإعادة تعيين كلمة المرور.</li>
     </ul>
+    <div class="note">لا يلزم الوصول المباشر إلى خوادم VPS — إدارة AKS تتم من Azure Portal أو Azure CLI أو عبر Azure DevOps Pipelines.</div>
   </section>
 
   <section>
     <h2>8. النطاقات وشهادات SSL</h2>
-    <ul>
-      <li>يوفر المجمع اسمَي نطاق: نطاق الإنتاج (مثل <code>example.sa</code>) ونطاق التجربة (مثل <code>staging.example.sa</code>).</li>
-      <li>يُوجَّه سجل DNS الرئيسي (A Record) لكل نطاق إلى عنوان IP الخاص بموزِّع الأحمال للبيئة المقابلة.</li>
-      <li>شهادات SSL مقدَّمة من المجمع لكلا النطاقين، وتُثبَّت على موزِّع الأحمال.</li>
-    </ul>
+    <table>
+      <thead><tr><th>المهمة</th><th>المسؤول</th><th>التفاصيل</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>توفير اسمَي النطاق</td>
+          <td>المجمع</td>
+          <td>نطاق الإنتاج (مثل <code>example.sa</code>) ونطاق التجربة (مثل <code>staging.example.sa</code>)</td>
+        </tr>
+        <tr>
+          <td>ضبط سجلات DNS</td>
+          <td>المجمع</td>
+          <td>توجيه A Record لكل نطاق إلى عنوان IP الـ NGINX Ingress Controller — يزوِّد الفريق التقني المجمعَ بعنوان IP الـ Ingress بعد اكتمال إعداد الـ cluster، ويُجري المجمع التعديل من لوحة DNS الخاصة بهم</td>
+        </tr>
+        <tr>
+          <td>توفير شهادات SSL</td>
+          <td>المجمع</td>
+          <td>ملف الشهادة (<code>.crt</code>)، المفتاح الخاص (<code>.key</code>)، وسلسلة CA لكلا النطاقَين</td>
+        </tr>
+        <tr>
+          <td>تثبيت شهادات SSL</td>
+          <td>الفريق التقني</td>
+          <td>تحميل الشهادات كـ Kubernetes TLS Secret وربطها بإعداد الـ Ingress لكل بيئة</td>
+        </tr>
+      </tbody>
+    </table>
   </section>
 
   <section>
-    <h2>9. سير النشر والتسليم</h2>
+    <h2>9. سير النشر والتسليم (Azure DevOps CI/CD)</h2>
+    <p>النشر مؤتمَت بالكامل عبر Azure DevOps Pipelines — لا يتطلب أي تدخل يدوي على الخوادم:</p>
     <ul>
-      <li>الكود مخزَّن في مستودع Git خاص يُسلَّم للمجمع عند الانتهاء، مع فرعَين رئيسيَّين: <code>main</code> للإنتاج و <code>staging</code> للتجربة.</li>
-      <li><b>دورة النشر:</b> أي تحديث يُنشر أولاً على بيئة التجربة ← يُراجَع ويُعتمَد من فريق المجمع ← ثم يُنشر على الإنتاج.</li>
-      <li><b>النشر على بيئة التجربة:</b> دفع التغييرات إلى فرع <code>staging</code> ثم تشغيل <code>docker compose up -d --build</code> على خادم التجربة.</li>
-      <li><b>النشر على الإنتاج (Rolling Update):</b> يُنفَّذ على خوادم التطبيق واحداً تلو الآخر — يُسحب الخادم من موزِّع الأحمال، يُحدَّث، يُعاد إدخاله، ثم يُكرَّر مع الخادم التالي — لضمان عدم انقطاع الخدمة.</li>
-      <li>يُوثَّق إجراء النشر الكامل ويُسلَّم ضمن حزمة التسليم النهائية.</li>
+      <li>الكود مخزَّن في مستودع Git مع فرعَين رئيسيَّين: <code>main</code> للإنتاج و<code>develop</code> للتجربة.</li>
+      <li><b>دورة النشر:</b> أي تحديث يُنشر أولاً على بيئة التجربة ← يُراجَع ويُعتمَد من فريق المجمع ← ثم يُدمج في <code>main</code> وينشر على الإنتاج تلقائياً.</li>
     </ul>
+
+    <h3 style="font-size:15px; margin-top:16px;">خطوات الـ Pipeline عند كل نشر</h3>
+    <table>
+      <thead><tr><th>#</th><th>الخطوة</th><th>التفاصيل</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>بناء صورة Docker</td><td>يُشغَّل <code>docker build</code> مع تمرير <code>NEXT_PUBLIC_*</code> كـ build-args مأخوذة من Variable Group البيئة — تُنتج صورة مستقلة لكل بيئة</td></tr>
+        <tr><td>2</td><td>رفع الصورة إلى ACR</td><td><code>docker push</code> إلى Azure Container Registry بوسم يتضمن رقم البناء</td></tr>
+        <tr><td>3</td><td>إنشاء Kubernetes Secret</td><td>يُنشأ أو يُحدَّث secret يحتوي DATABASE_URL، JWT_SECRET، SMTP، بيانات الأدمن — القيم تأتي من ADO Secret Variables ولا تُسجَّل في أي ملف</td></tr>
+        <tr><td>4</td><td>تطبيق الـ overlay</td><td><code>kubectl apply -k overlays/staging/</code> أو <code>overlays/production/</code> — يُنشئ namespace ويُطبِّق ConfigMap وService وIngress</td></tr>
+        <tr><td>5</td><td>تشغيل ترحيل قاعدة البيانات</td><td>يُحذف Job القديم ثم يُطبَّق <code>migration-job.yaml</code> الذي يُشغِّل <code>prisma migrate deploy</code> — Pipeline يتوقف هنا في حال الفشل ولا ينتقل للنشر</td></tr>
+        <tr><td>6</td><td>انتظار اكتمال الترحيل</td><td><code>kubectl wait --for=condition=complete --timeout=300s job/ksgaal-activity-map-migrate</code></td></tr>
+        <tr><td>7</td><td>نشر التطبيق</td><td><code>kubectl apply -f base/deployment.yaml</code> — يُطبِّق RollingUpdate فلا يُزال pod قديم إلا بعد جاهزية الجديد</td></tr>
+        <tr><td>8</td><td>انتظار اكتمال الـ rollout</td><td><code>kubectl rollout status deployment/ksgaal-activity-map --timeout=300s</code> — يفشل الـ pipeline إذا لم تكتمل خلال 5 دقائق</td></tr>
+        <tr><td>9</td><td>اختبار دخاني (Smoke test)</td><td>التحقق من <code>/api/health/live</code> و<code>/api/health/ready</code> — كلاهما يجب أن يُعيد HTTP 200</td></tr>
+      </tbody>
+    </table>
+    <div class="note">جميع الأسرار (كلمات المرور، مفاتيح JWT، بيانات قاعدة البيانات) محفوظة في Azure DevOps Secret Variable Groups ولا تُخزَّن في ملفات الكود أو سجلات الـ pipeline.</div>
   </section>
 
   <section>
@@ -241,27 +291,72 @@
     <table>
       <thead><tr><th>الطبقة</th><th>التقنية</th><th>الإصدار</th></tr></thead>
       <tbody>
-        <tr><td>Runtime</td><td>Node.js (Next.js server)</td><td>—</td></tr>
-        <tr><td>Frontend Framework</td><td>Next.js (App Router)</td><td>16.0.10</td></tr>
+        <tr><td>Runtime</td><td>Node.js LTS</td><td>20 (مُثبَّت في Dockerfile وpackage.json engines)</td></tr>
+        <tr><td>Frontend Framework</td><td>Next.js (App Router، Standalone Output)</td><td>16.2.6</td></tr>
         <tr><td>UI Library</td><td>React</td><td>19.2.0</td></tr>
         <tr><td>Language</td><td>TypeScript</td><td>5.x</td></tr>
         <tr><td>Styling</td><td>Tailwind CSS</td><td>4.x</td></tr>
         <tr><td>ORM</td><td>Prisma</td><td>6.19.3</td></tr>
-        <tr><td>قاعدة البيانات</td><td>PostgreSQL</td><td>—</td></tr>
+        <tr><td>قاعدة البيانات</td><td>PostgreSQL (Azure Flexible Server)</td><td>16+</td></tr>
         <tr><td>Validation</td><td>Zod</td><td>4.1.12</td></tr>
-        <tr><td>Animation</td><td>Framer Motion</td><td>12.23.24</td></tr>
+        <tr><td>Animation</td><td>Framer Motion</td><td>12.x</td></tr>
         <tr><td>3D Rendering</td><td>Three.js</td><td>0.184.0</td></tr>
         <tr><td>Interactive Maps</td><td>MapLibre GL</td><td>5.24.0</td></tr>
         <tr><td>Authentication</td><td>JWT (jose) + bcryptjs</td><td>jose 6.2.3</td></tr>
         <tr><td>Forms</td><td>React Hook Form</td><td>7.66.1</td></tr>
       </tbody>
     </table>
-    <div class="note">جميع التقنيات المذكورة مفتوحة المصدر. إصدارات الـ runtime تُحدَّد عند النشر حسب بيئة الخادم.</div>
+
+    <h3 style="font-size:16px; margin-top:18px;">ثالثاً: بنية النشر والتشغيل</h3>
+    <table>
+      <thead><tr><th>الطبقة</th><th>التقنية</th><th>الدور</th></tr></thead>
+      <tbody>
+        <tr><td>Container Runtime</td><td>Docker (Multi-Stage Build)</td><td>بناء صورة خفيفة بـ 4 مراحل — الصورة النهائية تعمل بـ <code>node server.js</code> فقط</td></tr>
+        <tr><td>Container Orchestration</td><td>Kubernetes (Azure AKS)</td><td>إدارة الـ pods، Rolling Updates، Health Probes، namespace isolation</td></tr>
+        <tr><td>Ingress Controller</td><td>NGINX Ingress Controller</td><td>نقطة الدخول الوحيدة — TLS termination + routing</td></tr>
+        <tr><td>Manifest Management</td><td>Kustomize (Overlays)</td><td>base مشترك + overlays مستقلة للـ staging والإنتاج</td></tr>
+        <tr><td>Container Registry</td><td>Azure Container Registry (ACR)</td><td>تخزين صور Docker المبنية</td></tr>
+        <tr><td>CI/CD</td><td>Azure DevOps Pipelines</td><td>بناء ورفع ونشر تلقائي عند كل push</td></tr>
+        <tr><td>Secrets Management</td><td>ADO Variable Groups + K8s Secrets</td><td>الأسرار محفوظة في ADO ومُمرَّرة عند النشر إلى K8s Secret — لا تُخزَّن في الكود</td></tr>
+        <tr><td>Database Migration</td><td>Kubernetes Job (prisma migrate deploy)</td><td>يُشغَّل قبل كل نشر — الـ pipeline يتوقف إذا فشل</td></tr>
+
+      </tbody>
+    </table>
+    <div class="note">جميع التقنيات المذكورة مفتوحة المصدر باستثناء خدمات Azure. إصدار Node.js مُثبَّت على 20 LTS في Dockerfile وفي حقل <code>engines</code> من <code>package.json</code>.</div>
+  </section>
+
+  <section>
+    <h2>11. المخططات البيانية</h2>
+
+    <h3 style="font-size:16px; margin-top:24px;">أ. بنية Kubernetes في وقت التشغيل</h3>
+    <p style="color:var(--muted); font-size:13px; margin: 4px 0 12px;">يوضِّح المخطط مكونات الـ cluster الكاملة: المستخدمون ← DNS ← NGINX Ingress ← Service ← Pods ← PostgreSQL + SMTP. يُبيِّن أيضاً ConfigMap وSecret وPrisma Migration Job.</p>
+    <div style="overflow-x:auto; border:1px solid var(--line); border-radius:6px; padding:12px; background:var(--panel);">
+      <img src="./diagram-k8s-runtime-architecture.png" alt="Kubernetes Runtime Architecture" style="max-width:100%; height:auto; display:block;" />
+    </div>
+
+    <h3 style="font-size:16px; margin-top:32px;">ب. تدفق طلب المستخدم العام (Public Request Flow)</h3>
+    <p style="color:var(--muted); font-size:13px; margin: 4px 0 12px;">مخطط تسلسلي يُتابع طلب HTTPS من الزائر العام حتى استجابة الصفحة، مع منطق Cache Hit / Cache Miss لبيانات الكرة الأرضية.</p>
+    <div style="overflow-x:auto; border:1px solid var(--line); border-radius:6px; padding:12px; background:var(--panel);">
+      <img src="./diagram-public-request-flow.png" alt="Public Request Flow" style="max-width:100%; height:auto; display:block;" />
+    </div>
+
+    <h3 style="font-size:16px; margin-top:32px;">ج. تدفق مصادقة المدير ولوحة التحكم (Admin Auth Flow)</h3>
+    <p style="color:var(--muted); font-size:13px; margin: 4px 0 12px;">مخطط تسلسلي يُوضِّح خطوات تسجيل الدخول: التحقق من كلمة المرور ← إرسال OTP عبر SMTP ← التحقق من OTP ← إنشاء جلسة آمنة ← الوصول إلى لوحة التحكم.</p>
+    <div style="overflow-x:auto; border:1px solid var(--line); border-radius:6px; padding:12px; background:var(--panel);">
+      <img src="./diagram-admin-auth-flow.png" alt="Admin Authentication Flow" style="max-width:100%; height:auto; display:block;" />
+    </div>
+
+    <h3 style="font-size:16px; margin-top:32px;">د. خط أنابيب النشر التلقائي (Azure DevOps CI/CD Pipeline)</h3>
+    <p style="color:var(--muted); font-size:13px; margin: 4px 0 12px;">يُبيِّن المخطط الرحلة الكاملة من لحظة دفع الكود حتى وصوله إلى الـ cluster: التحقق من الكود ← بناء صورة Docker ← رفعها إلى ACR ← نشرها على K8s ← تشغيل Migration Job ← Rolling Update.</p>
+    <div style="overflow-x:auto; border:1px solid var(--line); border-radius:6px; padding:12px; background:var(--panel);">
+      <img src="./diagram-cicd-pipeline.png" alt="Azure DevOps CI/CD Pipeline" style="max-width:100%; height:auto; display:block;" />
+    </div>
+
   </section>
 
   <footer class="report-footer">
     <div>وثيقة البنية التحتية</div>
-    <div>5 مايو 2026</div>
+    <div>21 مايو 2026</div>
   </footer>
 </div>
 </body>

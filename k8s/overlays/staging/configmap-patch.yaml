@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ksgaal-activity-map-config
+# Staging-specific overrides for the base ConfigMap.
+# Replace the placeholder URLs with real staging hostnames before deploying.
+data:
+  APP_ENV: "staging"
+  SMTP_HOST: "smtp.example.com"
+  EMAIL_FROM: "KSGAAL Staging <no-reply@staging.example.com>"
+  APP_URL: "https://staging.example.com"
+  NEXT_PUBLIC_FRONTEND_URL: "https://staging.example.com"
+  NEXT_PUBLIC_BACKEND_URL: "https://staging.example.com"
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ""

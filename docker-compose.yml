@@ -1,0 +1,79 @@
+# This compose file is for local testing only.
+# Production deployment should use Kubernetes and an approved managed
+# PostgreSQL service (e.g. Azure Database for PostgreSQL Flexible Server).
+#
+# Quick start:
+#   docker compose up --build
+#   # then visit http://localhost:3000  (app)
+#   #            http://localhost:8025  (Mailpit web UI for captured emails)
+#
+# First boot only — apply Prisma migrations:
+#   docker compose exec app npx prisma migrate deploy
+#   docker compose exec app npx prisma db seed   # optional admin seed
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ksgaal-activity-map:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      APP_ENV: dev
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ksgaal
+      JWT_SECRET: change-me-to-a-long-random-string-at-least-32-chars
+      SESSION_TTL_DAYS: "7"
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_SECURE: "false"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      EMAIL_FROM: "KSGAAL <no-reply@example.local>"
+      APP_URL: http://localhost:3000
+      NEXT_PUBLIC_FRONTEND_URL: http://localhost:3000
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:3000
+      NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ""
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "wget -qO- http://127.0.0.1:3000/api/health/live >/dev/null 2>&1 || exit 1"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ksgaal
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ksgaal"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

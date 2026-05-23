@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ksgaal-activity-map-config
+  namespace: ksgaal
+  labels:
+    app.kubernetes.io/name: ksgaal-activity-map
+    app.kubernetes.io/part-of: ksgaal-activity-map
+# Non-secret runtime configuration. Secrets (DATABASE_URL, JWT_SECRET,
+# SMTP_USER, SMTP_PASS, ADMIN_*) live in the Secret resource — never here.
+data:
+  NODE_ENV: "production"
+  APP_ENV: "prod"
+  PORT: "3000"
+  SESSION_TTL_DAYS: "7"
+  SMTP_HOST: "smtp.example.com"
+  SMTP_PORT: "465"
+  SMTP_SECURE: "true"
+  EMAIL_FROM: "KSGAAL <no-reply@example.com>"
+  APP_URL: "https://example.com"
+  NEXT_PUBLIC_FRONTEND_URL: "https://example.com"
+  NEXT_PUBLIC_BACKEND_URL: "https://example.com"
+  # Note: NEXT_PUBLIC_* values are baked into the client bundle at *build* time.
+  # Setting them here keeps server-side reads consistent but a rebuild is
+  # required to change what the browser actually receives.
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ""
