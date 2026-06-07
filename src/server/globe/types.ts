@@ -9,6 +9,9 @@ export type GlobeActivity = {
   type: string;
   subtype: string | null;
   date: string;
+  /** Optional rich detail surfaced in the public activity card (BRD #32/#38). */
+  description?: string | null;
+  images?: string[];
   /** Custom override coordinates. When present, the activity is rendered at
    *  exactly this point and skips the per-entity scatter offset. When null,
    *  the activity inherits its parent country/organization position. */

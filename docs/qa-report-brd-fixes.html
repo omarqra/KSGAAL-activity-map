@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تقرير التعديلات وضمان الجودة — معالجة ملاحظات BRD</title>
+<style>
+  :root {
+    --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #fff; --panel: #f8fafc;
+    --accent: #b45309; --gold: #c9a84c;
+    --pass-bg: #dcfce7; --pass: #15803d;
+    --warn-bg: #fef3c7; --warn: #b45309;
+    --dev-bg: #dbeafe; --dev: #1d4ed8;
+    --code-bg: #0f172a; --code-fg: #e2e8f0;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--panel); color: var(--ink); }
+  body { font-family: "Tajawal", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.8; font-size: 14px; }
+  .page { max-width: 1080px; margin: 0 auto; background: var(--bg); padding: 44px 52px; box-shadow: 0 0 0 1px var(--line); }
+  h1, h2, h3 { color: var(--ink); line-height: 1.3; margin: 0 0 10px; }
+  h1 { font-size: 25px; }
+  h2 { font-size: 17px; margin-top: 30px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  h3 { font-size: 14.5px; margin-top: 18px; color: var(--accent); }
+  p, li { color: var(--ink); }
+
+  .cover { border-top: 6px solid var(--accent); padding: 16px 0 22px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .eyebrow { letter-spacing: 2px; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 10px; }
+  .subtitle { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .meta { margin-top: 16px; color: var(--muted); font-size: 13px; }
+  .meta span { margin-left: 18px; }
+  .meta strong { color: var(--ink); }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 12.8px; }
+  th, td { text-align: right; padding: 8px 11px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-weight: 700; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--line); }
+  td.mono, code { font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 11.5px; direction: ltr; }
+  code { background: var(--panel); padding: 1px 5px; border-radius: 4px; }
+  td.center { text-align: center; }
+
+  .badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge.live { background: var(--pass-bg); color: var(--pass); }
+  .badge.dev  { background: var(--dev-bg); color: var(--dev); }
+  .badge.pass { background: var(--pass-bg); color: var(--pass); }
+
+  .note { background: var(--panel); border-right: 3px solid var(--accent); padding: 10px 14px; margin: 14px 0; font-size: 13.5px; border-radius: 0 6px 6px 0; }
+  .ok { color: var(--pass); font-weight: 700; }
+
+  pre { background: var(--code-bg); color: var(--code-fg); padding: 12px 14px; border-radius: 8px; overflow-x: auto; direction: ltr; font-size: 12px; line-height: 1.5; }
+
+  footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+  @media print { body { background:#fff; font-size:10pt; } .page { box-shadow:none; padding:0; max-width:100%; } tr,table { page-break-inside: avoid; } .cover { page-break-after: always; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="cover">
+    <div class="eyebrow">تقرير التعديلات وضمان الجودة (QA)</div>
+    <h1>معالجة ملاحظات مراجعة وثيقة متطلبات الأعمال — التنفيذ البرمجي</h1>
+    <div class="subtitle">مجمع الملك سلمان العالمي للغة العربية — الموقع العام + لوحة التحكم الإدارية</div>
+    <div class="meta">
+      <span><strong>الفرع</strong> <code>feature/brd-feedback-gaps</code></span>
+      <span><strong>التاريخ</strong> 8 يونيو 2026</span>
+      <span><strong>الحالة</strong> <span class="ok">جاهز للمراجعة قبل الرفع</span></span>
+    </div>
+  </section>
+
+  <section>
+    <h2>1. ملخص تنفيذي</h2>
+    <p>
+      عالجت هذه الدفعة البنود <strong>القابلة للتطوير</strong> من تقرير الجودة التقنية (الـ15 بنداً المصنّفة «تحت التطوير» في الرد الرسمي)، إضافةً إلى تهيئة ما يلزم لتوثيق المطبّق. كل التعديلات على فرع منفصل، بهجرة قاعدة بيانات <strong>إضافية (Additive)</strong> دون أي فقدان للبيانات، واجتازت فحوصات الأنواع والبناء واختبارات الوحدة.
+    </p>
+    <table style="width:auto; min-width:480px;">
+      <thead><tr><th>الفحص</th><th>الأداة</th><th>النتيجة</th></tr></thead>
+      <tbody>
+        <tr><td>فحص الأنواع (TypeScript)</td><td><code>tsc --noEmit</code></td><td><span class="badge pass">نجح — 0 خطأ</span></td></tr>
+        <tr><td>بناء الإنتاج</td><td><code>next build</code></td><td><span class="badge pass">نجح — كل المسارات</span></td></tr>
+        <tr><td>اختبارات المنطق + قاعدة البيانات</td><td>سكربت QA (21 فحص)</td><td><span class="badge pass">21 / 21 نجح</span></td></tr>
+        <tr><td>فحص ESLint للملفات المعدّلة</td><td><code>eslint</code></td><td><span class="badge pass">نظيف</span></td></tr>
+        <tr><td>هجرة قاعدة البيانات</td><td><code>migrate deploy</code></td><td><span class="badge pass">مطبّقة + backfill</span></td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <strong>أُصلح أيضاً عطل بناء قائم مسبقاً:</strong> الملف <code>next.config.ts</code> كان يستورد حزمة <code>jiti</code> غير المثبّتة، ما كان يُفشل <code>next build</code> بالكامل. أُضيفت الحزمة كاعتمادية تطوير فأصبح البناء أخضر.
+    </div>
+  </section>
+
+  <section>
+    <h2>2. ربط التعديلات بالملاحظات</h2>
+    <table>
+      <thead><tr><th>المجال</th><th>التعديل</th><th>الملاحظات المعالَجة</th><th>النوع</th></tr></thead>
+      <tbody>
+        <tr><td>نموذج البيانات</td><td>حقول جديدة على النشاط: <code>titleAr</code>, <code>titleEn</code>, <code>startDate</code>, <code>endDate</code>, <code>description</code>, <code>images[]</code></td><td class="center">22، 23، 21</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>التحقق من المدخلات</td><td>عنوان 3–120 حرفاً، وصف 50–150 كلمة، ≤5 صور، <code>endDate ≥ startDate</code>، نطاق الإحداثيات</td><td class="center">3، 38، 25</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>رفع الصور</td><td>رفع حتى 5 صور + تحقق الحجم/الصيغة/نسبة 16:9 + رسائل فشل + معرض في بطاقة الكرة</td><td class="center">8، 13، 32</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>سلامة الحذف المرجعي</td><td>منع حذف دولة/منظمة مرتبطة بأنشطة، أو نقلها عبر <code>?transferTo=</code> ضمن معاملة (transaction)</td><td class="center">7</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>التعديل المتزامن</td><td>قفل تفاؤلي عبر <code>expectedUpdatedAt</code> → استجابة 409 عند التعارض</td><td class="center">10</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>صمود الجلسة والاتصال</td><td>حفظ مسودة محلية عند انتهاء الجلسة (401) أو انقطاع الاتصال، واستعادتها عند إعادة الفتح</td><td class="center">16، 27</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>رسائل النظام</td><td>مجموعة رسائل <code>ApiErrors</code> + رسائل النموذج بالعربية والإنجليزية</td><td class="center">4</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>النسخ الاحتياطي</td><td><code>scripts/backup-db.mjs</code> (نسخ يومي + الاحتفاظ بـ30) + <code>docs/backup-policy.md</code></td><td class="center">6</td><td><span class="badge dev">تطوير</span></td></tr>
+        <tr><td>العنوان الإنجليزي</td><td>حقل عنوان إنجليزي اختياري في النموذج، منفصل عن العربي</td><td class="center">23</td><td><span class="badge dev">تطوير</span></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:12.5px; color:var(--muted);">
+      البنود المصنّفة «مطبّق» (الفلاتر، زر الإعادة، التفاعل عند الاختيار، تجميع العلامات، الأدوار، المصادقة، تسجيل الخروج، استعادة كلمة المرور، تحقق الإحداثيات، فصل خطّي الطول والعرض، حقل المنظمة، إدارة الدول/المنظمات) كانت موجودة في النظام مسبقاً ولم تتطلب تعديلاً برمجياً، وتُوثَّق في وثيقة المتطلبات.
+    </p>
+  </section>
+
+  <section>
+    <h2>3. الملفات المعدّلة</h2>
+    <h3>الخادم وقاعدة البيانات</h3>
+    <table>
+      <thead><tr><th>الملف</th><th>التغيير</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">prisma/schema.prisma</td><td>6 حقول إضافية على <code>Activity</code> (لا حذف لأي حقل قائم)</td></tr>
+        <tr><td class="mono">prisma/migrations/…_brd_activity_fields/</td><td>هجرة إضافية + backfill: <code>titleAr ← name</code> و <code>startDate ← dateParsed</code></td></tr>
+        <tr><td class="mono">src/app/api/_lib/validators.ts</td><td>قواعد تحقق الحقول الجديدة (متوافقة رجعياً مع النموذج الحالي)</td></tr>
+        <tr><td class="mono">src/app/api/admin/activities/route.ts</td><td>ملء <code>name/dateText/dateParsed</code> تلقائياً من الحقول الجديدة</td></tr>
+        <tr><td class="mono">src/app/api/admin/activities/[id]/route.ts</td><td>القفل التفاؤلي + مزامنة الأعمدة القديمة</td></tr>
+        <tr><td class="mono">src/app/api/admin/countries/[id]/route.ts</td><td>منع/نقل الأنشطة قبل حذف الدولة</td></tr>
+        <tr><td class="mono">src/app/api/admin/organizations/[id]/route.ts</td><td>منع/نقل الأنشطة قبل حذف المنظمة</td></tr>
+        <tr><td class="mono">src/server/globe/get-globe-data.ts · types.ts</td><td>تمرير <code>description/images</code> إلى الموقع العام</td></tr>
+      </tbody>
+    </table>
+    <h3>الواجهة</h3>
+    <table>
+      <thead><tr><th>الملف</th><th>التغيير</th></tr></thead>
+      <tbody>
+        <tr><td class="mono">…/activities/_components/activity-form-sheet.tsx</td><td>حقول العنوان الإنجليزي/التواريخ/الوصف + رافع الصور + معالجة التعارض/المسودة/الاتصال</td></tr>
+        <tr><td class="mono">…/activities/_lib/api.ts</td><td>توسعة نوع <code>ApiActivity</code> بالحقول الجديدة</td></tr>
+        <tr><td class="mono">…/components/globe-bootstrap.ts · globe-scene.css</td><td>عرض الوصف ومعرض الصور في بطاقة النشاط على الكرة</td></tr>
+        <tr><td class="mono">src/i18n/messages/ar.json · en.json</td><td>مجموعة <code>ApiErrors</code> + مفاتيح النموذج الجديدة</td></tr>
+        <tr><td class="mono">scripts/backup-db.mjs · docs/backup-policy.md · package.json</td><td>أداة النسخ الاحتياطي + سكربت <code>db:backup</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>4. نتائج اختبارات QA (21 فحص)</h2>
+    <pre>PASS  reject missing title            PASS  column exists: titleAr
+PASS  accept legacy name-only         PASS  column exists: titleEn
+PASS  accept titleAr + org            PASS  column exists: startDate
+PASS  reject no country/org           PASS  column exists: endDate
+PASS  reject 10-word description      PASS  column exists: description
+PASS  accept 80-word description      PASS  column exists: images
+PASS  reject 200-word description     PASS  backfill titleAr (182 rows)
+PASS  reject 6 images                 PASS  titleAr == name (all rows)
+PASS  accept 3 images
+PASS  reject lat 200                  ==== QA: 21 passed, 0 failed ====
+PASS  reject end &lt; start
+PASS  accept end &gt; start
+PASS  update partial titleEn</pre>
+    <div class="note">
+      اختبار التوافق الرجعي «accept legacy name-only» يؤكد أن النماذج والبيانات القديمة (التي ترسل <code>name</code> فقط) ما تزال تعمل دون كسر — شرط أساسي لرفع آمن.
+    </div>
+  </section>
+
+  <section>
+    <h2>5. التوافق وعدم فقدان البيانات</h2>
+    <ul>
+      <li>الهجرة <strong>إضافية فقط</strong> — لم يُحذف أو يُعد تسمية أي عمود قائم. الأعمدة القديمة (<code>name</code>, <code>dateText</code>, <code>dateParsed</code>) تبقى وتُملأ تلقائياً.</li>
+      <li>الموقع العام يواصل القراءة من الأعمدة القديمة، فلا ينكسر عرض الكرة أثناء الانتقال.</li>
+      <li>الحقول الجديدة كلها اختيارية على مستوى الواجهة؛ النموذج الحالي يعمل دون تغيير سلوك المستخدم.</li>
+      <li>الـ182 نشاطاً الحالية حصلت على <code>titleAr</code> و<code>startDate</code> عبر backfill (تحقّق آلي ناجح).</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>6. خطوات ما قبل الرفع (موصى بها)</h2>
+    <ul>
+      <li>تشغيل النظام يدوياً (<code>npm run dev</code>) والتحقق بصرياً من: إنشاء/تعديل نشاط بالحقول الجديدة، رفع صورة، ظهور المعرض على الكرة، رسالة تعارض عند تعديل متزامن.</li>
+      <li>جدولة سكربت النسخ الاحتياطي (<code>npm run db:backup</code>) يومياً على الخادم.</li>
+      <li>اعتماد القيم الافتراضية القابلة للنقاش: مدة الجلسة، نسبة 16:9 للصور، نطاق 50–150 كلمة للوصف.</li>
+    </ul>
+  </section>
+
+  <footer>تقرير QA — فرع feature/brd-feedback-gaps · 8 يونيو 2026 · مجمع الملك سلمان العالمي للغة العربية</footer>
+</div>
+</body>
+</html>

@@ -105,7 +105,20 @@ export async function POST(req: NextRequest) {
     const auth = await requireApiRole(["admin", "editor"]);
     if (!auth.ok) return auth.response;
     const body = activityCreate.parse(await req.json());
-    const row = await prisma.activity.create({ data: body });
+    // Mirror new fields into legacy columns the public globe still reads:
+    // name ← titleAr, dateParsed/dateText ← startDate (BRD #22/#23 compat).
+    const startDate = body.startDate ?? null;
+    const title = (body.name ?? body.titleAr) as string; // refine guarantees one
+    const row = await prisma.activity.create({
+      data: {
+        ...body,
+        name: title,
+        titleAr: body.titleAr ?? title,
+        dateParsed: body.dateParsed ?? startDate,
+        dateText:
+          body.dateText ?? (startDate ? startDate.toISOString().slice(0, 10) : null),
+      },
+    });
     await auditFromRequest(req, {
       action: "RESOURCE_CREATED",
       userId: auth.user.id,

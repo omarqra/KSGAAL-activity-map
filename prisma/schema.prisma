@@ -180,8 +180,18 @@ model ActivitySubtype {
 model Activity {
   id             Int       @id @default(autoincrement())
   name           String
+  // Bilingual title (BRD feedback #23): separate AR/EN fields. `name` kept as
+  // legacy/fallback and backfilled into titleAr; the public globe still reads it.
+  titleAr        String?
+  titleEn        String?
   dateText       String?
   dateParsed     DateTime?
+  // Separate start/end dates (BRD feedback #22). `dateText`/`dateParsed` kept as
+  // legacy; startDate backfilled from dateParsed.
+  startDate      DateTime?
+  endDate        DateTime?
+  description    String?   // BRD feedback #21/#38 (50–150 words enforced in validator)
+  images         String[]  @default([]) // BRD feedback #8/#13/#32: up to 5 image URLs
   typeId         Int
   subtypeId      Int?
   countryId      Int?

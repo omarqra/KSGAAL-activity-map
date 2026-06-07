@@ -37,8 +37,44 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (!auth.ok) return auth.response;
     const id = parseId((await params).id);
     if (!id) return fail("Invalid id", 400);
-    const body = activityUpdate.parse(await req.json());
-    const row = await prisma.activity.update({ where: { id }, data: body });
+    const json = await req.json();
+    // BRD feedback #10: optimistic concurrency. The client sends the
+    // `expectedUpdatedAt` it loaded; if the row changed since, reject with 409
+    // so the second editor reloads instead of silently overwriting.
+    const expectedUpdatedAt =
+      json && typeof json.expectedUpdatedAt === "string"
+        ? new Date(json.expectedUpdatedAt)
+        : null;
+    const body = activityUpdate.parse(json);
+    if (expectedUpdatedAt && !Number.isNaN(expectedUpdatedAt.getTime())) {
+      const current = await prisma.activity.findUnique({
+        where: { id },
+        select: { updatedAt: true },
+      });
+      if (!current) return notFound("Activity");
+      if (current.updatedAt.getTime() !== expectedUpdatedAt.getTime()) {
+        return fail("ACTIVITY_CONFLICT", 409, "CONFLICT", {
+          currentUpdatedAt: current.updatedAt,
+        });
+      }
+    }
+    // Keep legacy columns in sync with new fields (BRD #22/#23 compat).
+    const data: typeof body & {
+      dateParsed?: Date | null;
+      dateText?: string | null;
+    } = { ...body };
+    if (body.titleAr && body.name === undefined) {
+      data.name = body.titleAr;
+    }
+    if (body.startDate !== undefined) {
+      data.dateParsed = body.startDate ?? null;
+      if (body.dateText === undefined) {
+        data.dateText = body.startDate
+          ? body.startDate.toISOString().slice(0, 10)
+          : null;
+      }
+    }
+    const row = await prisma.activity.update({ where: { id }, data });
     await auditFromRequest(req, {
       action: "RESOURCE_UPDATED",
       userId: auth.user.id,

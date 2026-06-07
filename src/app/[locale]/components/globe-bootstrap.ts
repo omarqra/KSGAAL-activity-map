@@ -944,6 +944,8 @@ export function bootstrapGlobeScene(
     type: string;
     subtype: string | null;
     date: string;
+    description?: string | null;
+    images?: string[];
     lat: number;
     lng: number;
     entityCode: string;
@@ -1004,6 +1006,8 @@ export function bootstrapGlobeScene(
             type: a.type,
             subtype: a.subtype,
             date: a.date,
+            description: a.description,
+            images: a.images,
             lat: point.lat,
             lng: point.lng,
             entityCode: e.code,
@@ -1138,6 +1142,18 @@ export function bootstrapGlobeScene(
         const subtypeRow = act.subtype
           ? `<div class="pt-row"><span class="pt-label">${t("subtype")}</span><span class="pt-val">${escTip(act.subtype)}</span></div>`
           : "";
+        const descHtml = act.description
+          ? `<div class="pt-desc">${escTip(act.description)}</div>`
+          : "";
+        const imgs = (act.images ?? []).slice(0, 3);
+        const imgsHtml = imgs.length
+          ? `<div class="pt-imgs">${imgs
+              .map(
+                (u) =>
+                  `<img src="${escTip(u)}" alt="" loading="lazy" onerror="this.style.display='none'">`,
+              )
+              .join("")}</div>`
+          : "";
         const entityVisual =
           act.entityKind === "country"
             ? `<img src="${pinFlagUrl(act.entity.code)}" alt="" onerror="this.style.display='none'">`
@@ -1153,6 +1169,8 @@ export function bootstrapGlobeScene(
             ${subtypeRow}
             <div class="pt-row"><span class="pt-label">${t("year")}</span><span class="pt-val">${escTip(dateTxt)}</span></div>
           </div>
+          ${descHtml}
+          ${imgsHtml}
         `;
       }
 

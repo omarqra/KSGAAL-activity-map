@@ -17,6 +17,8 @@ type ActivityRow = {
   id: number;
   name: string;
   dateText: string | null;
+  description: string | null;
+  images: string[];
   lat: number | null;
   lng: number | null;
   type: { key: string };
@@ -57,6 +59,8 @@ const ACTIVITY_INCLUDE = {
     id: true,
     name: true,
     dateText: true,
+    description: true,
+    images: true,
     lat: true,
     lng: true,
     type: { select: { key: true } },
@@ -69,6 +73,8 @@ const toGlobeActivity = (a: ActivityRow): GlobeActivity => ({
   type: a.type.key,
   subtype: a.subtype?.labelAr ?? null,
   date: a.dateText ?? "",
+  description: a.description,
+  images: a.images ?? [],
   lat: a.lat,
   lng: a.lng,
 });

@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>الرد على ملاحظات مراجعة وثيقة متطلبات الأعمال</title>
+<style>
+  :root {
+    --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #fff; --panel: #f8fafc;
+    --accent: #b45309; --gold: #c9a84c;
+    --pass-bg: #dcfce7; --pass: #15803d;
+    --warn-bg: #fef3c7; --warn: #b45309;
+    --dev-bg: #dbeafe; --dev: #1d4ed8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--panel); color: var(--ink); }
+  body { font-family: "Tajawal", "Cairo", "Segoe UI", Tahoma, Arial, sans-serif; line-height: 1.8; font-size: 14px; }
+  .page { max-width: 1140px; margin: 0 auto; background: var(--bg); padding: 44px 52px; box-shadow: 0 0 0 1px var(--line); }
+  h1, h2 { color: var(--ink); line-height: 1.3; margin: 0 0 10px; }
+  h1 { font-size: 25px; }
+  h2 { font-size: 17px; margin-top: 28px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  p, li { color: var(--ink); }
+
+  .cover { border-top: 6px solid var(--accent); padding: 16px 0 22px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .eyebrow { letter-spacing: 2px; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 10px; }
+  .cover .subtitle { font-size: 14px; color: var(--muted); margin-top: 4px; }
+  .meta { margin-top: 16px; color: var(--muted); font-size: 13px; }
+  .meta span { margin-left: 18px; }
+  .meta strong { color: var(--ink); }
+
+  .note { background: var(--panel); border-right: 3px solid var(--accent); padding: 10px 14px; margin: 14px 0; font-size: 13.5px; border-radius: 0 6px 6px 0; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 12.8px; }
+  th, td { text-align: right; padding: 9px 11px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel); font-weight: 700; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--line); }
+  td.num { font-family: "SF Mono", Consolas, monospace; font-size: 12px; color: var(--accent); font-weight: 700; text-align: center; white-space: nowrap; width: 30px; }
+  td.action { background: #fafafa; }
+
+  .badge { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .badge.live { background: var(--pass-bg); color: var(--pass); }
+  .badge.doc  { background: var(--warn-bg); color: var(--warn); }
+  .badge.dev  { background: var(--dev-bg); color: var(--dev); }
+
+  footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+  @media print {
+    body { background: #fff; font-size: 10pt; }
+    .page { box-shadow: none; padding: 0; max-width: 100%; }
+    table { page-break-inside: avoid; }
+    tr { page-break-inside: avoid; }
+    .cover { page-break-after: always; }
+  }
+  @media (max-width: 820px) {
+    .page { padding: 20px 14px; }
+    table { font-size: 11.5px; }
+    th, td { padding: 7px 7px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <section class="cover">
+    <div class="eyebrow">ردّ رسمي على ملاحظات المراجعة</div>
+    <h1>الرد على تقرير ملاحظات تحليل وثيقة متطلبات الأعمال<br>لمشروع المجمع حول العالم</h1>
+    <div class="subtitle">مجمع الملك سلمان العالمي للغة العربية</div>
+    <div class="meta">
+      <span><strong>تاريخ التقرير الأصلي</strong> 24/05/2026</span>
+      <span><strong>تاريخ هذا الرد</strong> 07/06/2026</span>
+      <span><strong>عدد الملاحظات</strong> 39</span>
+    </div>
+    <div class="note">
+      تمّت دراسة جميع الملاحظات الـ39 ومطابقتها مع النظام المنفَّذ فعلياً. صُنِّف الرد على كل ملاحظة إلى إحدى ثلاث حالات:
+      <br><span class="badge live">مطبّق</span> &nbsp;السلوك منفَّذ في النظام حالياً، والإجراء هو توثيقه في الوثيقة.
+      <br><span class="badge doc">توثيق</span> &nbsp;بند توثيقي يُضاف إلى الوثيقة (لا يتطلب تغييراً برمجياً).
+      <br><span class="badge dev">تحت التطوير</span> &nbsp;ميزة غير متوفرة حالياً، سيتم تطويرها ضمن النطاق المتفق عليه.
+    </div>
+  </section>
+
+  <section>
+    <h2>جدول الردود التفصيلي</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px">#</th>
+          <th style="width:115px">المتطلب</th>
+          <th style="width:90px">نوع الملاحظة</th>
+          <th>وصف الملاحظة</th>
+          <th style="min-width:260px">الإجراء المتخذ</th>
+          <th style="width:80px">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td class="num">1</td>
+          <td>المستخدمون والصلاحيات</td>
+          <td>عدم اكتمال</td>
+          <td>لا يوجد تعريف واضح للأدوار والصلاحيات</td>
+          <td class="action">النظام يطبّق أدواراً معرّفة (مسؤول/محرّر/مشاهِد) مع فرضها على مستوى واجهات البرمجة. سيُوثَّق في الوثيقة جدول مصفوفة الصلاحيات الموجود فعلياً.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">2</td>
+          <td>تسجيل الدخول</td>
+          <td>عدم اكتمال</td>
+          <td>لم يُوضَّح مصدر الحسابات ولا آلية المصادقة</td>
+          <td class="action">الحسابات داخلية يُنشئها المسؤول. المصادقة قائمة على الجلسات + تحقق بخطوتين (رمز OTP)، وكلمات المرور مُجزّأة (bcrypt). سيُوثَّق التدفق الكامل في الوثيقة.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">3</td>
+          <td>قواعد التحقق من المدخلات</td>
+          <td>عدم اكتمال</td>
+          <td>لا توجد قواعد تحقق واضحة للحقول</td>
+          <td class="action">النظام يطبّق تحققاً (Zod) على الإحداثيات وقوة كلمة المرور والحقول المرتبطة. سيُوثَّق الموجود، وتُضاف قواعد تحقق للحقول النصية والتواريخ في الوثيقة وفي النظام.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">4</td>
+          <td>رسائل النجاح والفشل</td>
+          <td>عدم اكتمال</td>
+          <td>لم تُوثَّق رسائل النجاح أو الفشل</td>
+          <td class="action">رسائل النظام معرّفة فعلياً في ملفات الترجمة (عربي/إنجليزي). سيُجمَّع جدول موحّد بها لكل عملية ويُدرَج في الوثيقة.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">5</td>
+          <td>دعم اللغة الإنجليزية</td>
+          <td>تعارض</td>
+          <td>استبعاد الإنجليزية مع وجود زر EN/AR</td>
+          <td class="action">لا تعارض: زر AR/EN مطبّق وفعّال ويبدّل واجهة الموقع بالكامل (عبر next-intl). المستبعد هو ترجمة بيانات الأنشطة. سيُوضَّح هذا التمييز في النطاق.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">6</td>
+          <td>النسخ الاحتياطي</td>
+          <td>عدم اكتمال</td>
+          <td>لم تُوضَّح سياسة النسخ والاستعادة ومعدّلها</td>
+          <td class="action">لا توجد سياسة نسخ احتياطي موثّقة في النظام حالياً. سيتم إعداد سياسة نسخ يومي تلقائي مع آلية استعادة موثّقة (RPO/RTO)، وتوثيقها في الوثيقة.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">7</td>
+          <td>حذف الدول والمنظمات</td>
+          <td>عدم اكتمال</td>
+          <td>لم تُوضَّح آلية نقل الأنشطة قبل الحذف</td>
+          <td class="action">السلوك الحالي: عند حذف دولة/منظمة تُفصَل الأنشطة المرتبطة (تصبح بلا ارتباط) دون منع. سيتم تطوير آلية تطالب بنقل الأنشطة أو تمنع الحذف، وتوثيقها كمتطلب.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">8</td>
+          <td>رفع الصور</td>
+          <td>عدم اكتمال</td>
+          <td>لا يوجد توضيح لسلوك فشل رفع الصور</td>
+          <td class="action">ميزة صور النشاط غير متوفرة في النموذج الحالي. سيتم تطويرها (حقول صور + تحقق حجم/صيغة + رسائل فشل) إذا اعتُمدت ضمن النطاق، ثم توثيقها.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">9</td>
+          <td>المخطط الانسيابي</td>
+          <td>عدم اكتمال</td>
+          <td>الوثيقة لا تحتوي مخططاً انسيابياً</td>
+          <td class="action">ستُضاف مخططات تدفق للعمليات الرئيسية (تسجيل الدخول، إنشاء/تعديل نشاط، الحذف، استعادة كلمة المرور) إلى الوثيقة.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">10</td>
+          <td>التعديل المتزامن</td>
+          <td>عدم اكتمال</td>
+          <td>لا توضيح للتعديل المتزامن لنفس النشاط</td>
+          <td class="action">لا توجد حالياً معالجة لتعارض التعديلات. سيتم تطوير قفل تفاؤلي يعتمد على طابع آخر تعديل (updatedAt) مع رسالة تعارض، وتوثيقه كمتطلب.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">11</td>
+          <td>صلاحيات تعديل ونشر الأنشطة</td>
+          <td>غموض</td>
+          <td>غير واضح من يعدّل النشاط بعد نشره</td>
+          <td class="action">التعديل والحذف غير مقيّدين بمنشئ النشاط: أي مستخدم بدور مسؤول أو محرّر يمكنه ذلك (مفروض في النظام). سيُوثَّق صراحةً.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">12</td>
+          <td>آلية النشر وبيئة Staging</td>
+          <td>عدم اكتمال</td>
+          <td>لم تُوضَّح آلية النشر ودور بيئة Staging</td>
+          <td class="action">الآلية الفعلية: الموقع العام يقرأ البيانات مباشرة من قاعدة البيانات (مع تخزين مؤقت ~60 ثانية)، فيظهر أي تعديل تلقائياً. Staging بيئة مراجعة اختيارية وليست جزءاً إلزامياً من النشر. سيُوثَّق هذا بدقّة.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">13</td>
+          <td>قواعد رفع الصور</td>
+          <td>عدم اكتمال</td>
+          <td>قواعد الصور غائبة من المتطلبات الوظيفية</td>
+          <td class="action">مرتبطة بالملاحظة 8 — ميزة الصور غير متوفرة حالياً. عند اعتمادها ستُوثَّق قواعد التحقق ضمن المتطلبات الوظيفية وجدول الحقول.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">14</td>
+          <td>أهداف قابلة للقياس</td>
+          <td>عدم اكتمال</td>
+          <td>الوثيقة لا تحدد أهدافاً ولا مؤشرات نجاح</td>
+          <td class="action">ستُضاف أهداف بمؤشرات واقعية مطابقة للنظام: زمن انعكاس التعديل ≤ 60 ثانية، توافر الموقع، أداء Lighthouse، الوصولية WCAG 2.1 AA.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">15</td>
+          <td>انتهاء الجلسة</td>
+          <td>عدم اكتمال</td>
+          <td>لم تُحدَّد مدة الجلسة وسلوك انتهائها</td>
+          <td class="action">المدة الحالية: صلاحية جلسة 7 أيام (قابلة للضبط عبر إعداد). سيُوثَّق ذلك؛ وإن طُلب مهلة خمول أقصر سيتم تطويرها بالقيمة المعتمدة.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">16</td>
+          <td>انتهاء الجلسة أثناء تعديل نشاط</td>
+          <td>عدم اكتمال</td>
+          <td>لا توضيح لمصير البيانات المُدخلة</td>
+          <td class="action">لا يوجد حالياً حفظ مؤقت للمسودة عند انتهاء الجلسة. سيتم تطوير حفظ مؤقت/إشعار للمستخدم لتجنّب فقد البيانات، وتوثيقه.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">17</td>
+          <td>استعادة كلمة المرور</td>
+          <td>عدم اكتمال</td>
+          <td>غائبة من المتطلبات الوظيفية</td>
+          <td class="action">آلية استعادة كلمة المرور مطبّقة فعلياً (طلب عبر البريد + رمز صلاحيته 30 دقيقة + إعادة تعيين مع منع إعادة الاستخدام). سيُوثَّق التدفق كمتطلب.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">18</td>
+          <td>الملف المنظم بين اللوحة والموقع</td>
+          <td>عدم اكتمال</td>
+          <td>ذكر القراءة من ملف دون تفاصيل فنية</td>
+          <td class="action">توضيح فني دقيق: الموقع العام يقرأ مباشرة من قاعدة البيانات عبر طبقة خدمة (مع تخزين مؤقت ~60 ثانية)، وليس من ملف ثابت. سيُوثَّق مصدر البيانات وآلية التحديث بدقّة.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">19</td>
+          <td>التغييرات على الأنشطة</td>
+          <td>غير قابل للاختبار</td>
+          <td>كلمة "فوراً" غير قابلة للقياس</td>
+          <td class="action">سيُعدَّل المتطلب إلى قيمة قابلة للقياس مطابقة للنظام: "تظهر التغييرات خلال ≤ 60 ثانية" (مدة التخزين المؤقت الحالية)، مع إمكانية تقليلها عند الحاجة.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">20</td>
+          <td>اختلاف الفلاتر بين المتطلبات والدليل</td>
+          <td>تعارض</td>
+          <td>المتطلبات تذكر فلترين والدليل يضيف السنة</td>
+          <td class="action">النظام يدعم فعلياً فلاتر: النوع، التصنيف الفرعي، الموقع (الدولة/المنظمة)، والسنة، إضافةً للبحث. سيُحدَّث المتطلب ليطابق الواقع.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">21</td>
+          <td>تاريخ النهاية "إن وُجد"</td>
+          <td>عدم اكتمال</td>
+          <td>لم يُوضَّح العرض عند غياب تاريخ النهاية</td>
+          <td class="action">التاريخ يُخزَّن حالياً كنص + قيمة مُحلَّلة، ويُعرض النشاط بالقيمة المتاحة دون إخفائه عند غياب النهاية. سيُوثَّق هذا السلوك.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">22</td>
+          <td>حقل التاريخ</td>
+          <td>غموض</td>
+          <td>التاريخ حقل واحد بينما الوصف يشير لتاريخين</td>
+          <td class="action">النموذج الحالي يستخدم حقل تاريخ نصياً واحداً. سيتم تطويره إلى تاريخ بداية إلزامي وتاريخ نهاية اختياري منفصلين إذا اعتُمد ذلك، وتوثيقه.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">23</td>
+          <td>العنوان بالعربية والإنجليزية</td>
+          <td>غموض</td>
+          <td>غير واضح إن كانا حقلين منفصلين وإلزاميتهما</td>
+          <td class="action">النموذج الحالي يستخدم حقل اسم واحداً. سيتم تطويره إلى حقلَي عنوان منفصلين (عربي إلزامي، إنجليزي اختياري) إذا اعتُمد، وتوثيق الإلزامية لكل منهما.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">24</td>
+          <td>نشاطان على إحداثيات متطابقة</td>
+          <td>حالة مفقودة</td>
+          <td>لا توضيح لسلوك تداخل العلامات</td>
+          <td class="action">النظام يطبّق فعلياً إزاحة العلامات المتداخلة بنمط حلزوني (golden-angle) حول مركز الجهة لإظهارها منفصلة. سيُوثَّق هذا السلوك.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">25</td>
+          <td>إحداثيات خارج النطاق الصالح</td>
+          <td>حالة مفقودة</td>
+          <td>لا تحقق من نطاق الإحداثيات</td>
+          <td class="action">النظام يطبّق فعلياً تحققاً: خط العرض −90..90، خط الطول −180..180 (Zod) على الإنشاء والتعديل مع رفض القيم خارج النطاق. سيُوثَّق.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">26</td>
+          <td>تصفية لا تُنتج نتائج</td>
+          <td>حالة مفقودة</td>
+          <td>لم يُعرَّف ما يُعرض عند عدم وجود نتائج</td>
+          <td class="action">النظام يعرض حالة "لا توجد نتائج" (نص معرّف في الترجمة) ويُخفي العلامات. سيُوثَّق كمتطلب.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">27</td>
+          <td>انقطاع الاتصال أثناء الحفظ</td>
+          <td>حالة مفقودة</td>
+          <td>لا توضيح لمصير البيانات عند فشل الحفظ</td>
+          <td class="action">لا توجد حالياً معالجة صريحة لانقطاع الاتصال أثناء الحفظ. سيتم تطوير رسالة خطأ مع إعادة محاولة والحفاظ على المدخلات، وتوثيقه.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">28</td>
+          <td>آلية النشر الفوري</td>
+          <td>عدم اكتمال</td>
+          <td>الآلية التقنية للنشر الفوري غائبة</td>
+          <td class="action">الآلية: حفظ في اللوحة → تحديث قاعدة البيانات → قراءة الموقع العام للبيانات المحدَّثة خلال ≤ 60 ثانية (مدة التخزين المؤقت). سيُوثَّق بدقّة مع مخطط.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">29</td>
+          <td>توافر النظام</td>
+          <td>متطلب مفقود</td>
+          <td>لوحة التحكم بلا نسبة توافر محددة</td>
+          <td class="action">ستُضاف نسبة توافر مستقلة للوحة التحكم في قسم المتطلبات غير الوظيفية بالقيمة المعتمدة من المجمع.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">30</td>
+          <td>أصحاب المصلحة ومالك الوثيقة</td>
+          <td>متطلب مفقود</td>
+          <td>لا ذكر لأصحاب المصلحة أو مالك الوثيقة</td>
+          <td class="action">سيُضاف قسم يحدد مالك الوثيقة والجهة المعتمِدة والمراجع التقني ومستخدمي اللوحة والمستفيد النهائي.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">31</td>
+          <td>حقل "المنظمة"</td>
+          <td>متطلب مفقود</td>
+          <td>لا يوجد حقل منظمة في نموذج النشاط</td>
+          <td class="action">النشاط في النظام مرتبط فعلياً بحقل منظمة (ويُربط بدولة أو منظمة). سيُوثَّق الحقل في جدول الحقول ونموذج الإنشاء/التعديل.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">32</td>
+          <td>عرض الصور في تفاصيل النشاط</td>
+          <td>عدم اكتمال</td>
+          <td>لم تُوضَّح طريقة عرض الصور في البطاقة</td>
+          <td class="action">مرتبطة بالملاحظة 8 — الصور غير متوفرة حالياً. عند تطويرها ستُعرض كمعرض داخل البطاقة، مع توثيق طريقة العرض.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">33</td>
+          <td>مصدر البيانات</td>
+          <td>تعارض</td>
+          <td>غموض بين القراءة من ملف والحذف من قاعدة البيانات</td>
+          <td class="action">لا تعارض: قاعدة البيانات هي المصدر الوحيد لجميع العمليات والقراءة (الموقع العام يقرأ منها مباشرة عبر طبقة خدمة بتخزين مؤقت). سيُوضَّح ذلك ويُزال أي ذكر مضلِّل لملف وسيط.</td>
+          <td><span class="badge doc">توثيق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">34</td>
+          <td>سلوك زر "إعادة الضبط" والشعار</td>
+          <td>نقص متطلب وظيفي</td>
+          <td>سلوك زر الإعادة غير موثّق كمتطلب</td>
+          <td class="action">النظام يطبّق فعلياً: إعادة الضبط تُلغي التصفية والتحديد وتُعيد الكرة لزاوية الرؤية الافتراضية وتستأنف الدوران. سيُوثَّق بالتفصيل كمتطلب.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">35</td>
+          <td>إدارة الدول والمنظمات</td>
+          <td>نقص متطلب وظيفي</td>
+          <td>شاشات إدارة الدول/المنظمات غير موثّقة كمتطلبات</td>
+          <td class="action">لوحة التحكم تتضمن فعلياً شاشات كاملة لإدارة الدول والمنظمات (إضافة/تعديل/حذف). ستُوثَّق متطلباتها الوظيفية بنفس مستوى التفصيل.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">36</td>
+          <td>دمج حقل الإحداثيات</td>
+          <td>غموض</td>
+          <td>الإحداثيات تبدو كحقل واحد</td>
+          <td class="action">النظام يخزّن ويعالج خط العرض وخط الطول كحقلين مستقلين فعلياً، ولكل منهما تحقق نطاق خاص. سيُصحَّح عرض الجدول في الوثيقة ليعكس ذلك.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">37</td>
+          <td>ميزة تسجيل الخروج</td>
+          <td>نقص متطلب وظيفي</td>
+          <td>تسجيل الخروج غير مذكور كمتطلب</td>
+          <td class="action">تسجيل الخروج مطبّق فعلياً (ينهي الجلسة ويمسح كوكي الجلسة). سيُوثَّق كمتطلب وظيفي صريح.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">38</td>
+          <td>تحويل الإرشادات إلى قيود تحقق</td>
+          <td>نقص متطلب وظيفي</td>
+          <td>طول الوصف وأبعاد الصور إرشادات لا قواعد إلزامية</td>
+          <td class="action">حقل الوصف وحقول الصور غير متوفرة في النموذج الحالي. عند اعتماد إضافتها ستُطبَّق كقواعد تحقق إلزامية (طول الوصف، نسبة 16:9) لا مجرد إرشادات، وتُوثَّق.</td>
+          <td><span class="badge dev">تحت التطوير</span></td>
+        </tr>
+
+        <tr>
+          <td class="num">39</td>
+          <td>التفاعل عند اختيار النشاط</td>
+          <td>نقص متطلب وظيفي</td>
+          <td>توجيه الكرة عند اختيار النشاط غير موثّق</td>
+          <td class="action">النظام يطبّق فعلياً: اختيار نشاط (من القائمة أو علامته) يحرّك الكرة إلى موقعه ويُبرز العلامة ويوقف الدوران التلقائي. سيُوثَّق كمتطلب صريح.</td>
+          <td><span class="badge live">مطبّق</span></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>ملخص الاستجابة</h2>
+    <table style="width:auto; min-width:420px;">
+      <thead><tr><th>الحالة</th><th>الوصف</th><th>العدد</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge live">مطبّق</span></td><td>سلوك موجود في النظام، يُوثَّق في الوثيقة</td><td>17</td></tr>
+        <tr><td><span class="badge doc">توثيق</span></td><td>بند توثيقي يُضاف دون تغيير برمجي</td><td>7</td></tr>
+        <tr><td><span class="badge dev">تحت التطوير</span></td><td>ميزة تُطوَّر ضمن النطاق المتفق عليه</td><td>15</td></tr>
+        <tr><td><strong>المجموع</strong></td><td></td><td><strong>39 / 39</strong></td></tr>
+      </tbody>
+    </table>
+    <div class="note">
+      <strong>البنود تحت التطوير</strong> تشمل ميزات غير متوفرة في النظام حالياً (صور الأنشطة، حقل الوصف، فصل العنوان لعربي/إنجليزي، فصل تاريخَي البداية والنهاية، منع حذف الدولة/المنظمة المرتبطة، القفل التفاؤلي للتعديل المتزامن، حفظ المسودة عند انتهاء الجلسة/انقطاع الاتصال، وسياسة النسخ الاحتياطي). يُرجى اعتماد نطاق هذه البنود لجدولتها وتنفيذها.
+    </div>
+  </section>
+
+  <footer>رد على تقرير الجودة التقنية (24/05/2026) &middot; تاريخ الرد: 07/06/2026 &middot; مجمع الملك سلمان العالمي للغة العربية</footer>
+</div>
+</body>
+</html>

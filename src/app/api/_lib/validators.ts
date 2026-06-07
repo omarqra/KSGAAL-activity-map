@@ -76,33 +76,76 @@ export const activitySubtypeCreate = z.object({
 });
 export const activitySubtypeUpdate = activitySubtypeCreate.partial();
 
-export const activityCreate = z
-  .object({
-    name: z.string().min(1),
-    dateText: z.string().nullish(),
-    dateParsed: z.coerce.date().nullish(),
-    typeId: z.number().int().positive(),
-    subtypeId: z.number().int().positive().nullish(),
-    countryId: z.number().int().positive().nullish(),
-    organizationId: z.number().int().positive().nullish(),
-    lat: z.number().min(-90).max(90).nullish(),
-    lng: z.number().min(-180).max(180).nullish(),
-  })
-  .refine((v) => v.countryId || v.organizationId, {
-    message: "Activity must belong to a country or an organization",
-    path: ["countryId"],
-  });
-export const activityUpdate = z.object({
-  name: z.string().min(1).optional(),
+// BRD feedback #3/#38: field-level validation rules.
+export const ACTIVITY_IMAGES_MAX = 5;
+export const ACTIVITY_DESC_MIN_WORDS = 50;
+export const ACTIVITY_DESC_MAX_WORDS = 150;
+
+const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+// Description is optional (legacy activities have none), but when a non-empty
+// value is provided it must fall within the 50–150 word range (BRD #38).
+const descriptionField = z
+  .string()
+  .refine(
+    (s) => {
+      const w = wordCount(s);
+      return w >= ACTIVITY_DESC_MIN_WORDS && w <= ACTIVITY_DESC_MAX_WORDS;
+    },
+    { message: "DESCRIPTION_WORD_RANGE" },
+  )
+  .nullish();
+
+const imagesField = z
+  .array(z.string().min(1))
+  .max(ACTIVITY_IMAGES_MAX, { message: "IMAGES_MAX" })
+  .optional();
+
+// Shared activity fields. `name` is the legacy title; titleAr/titleEn and
+// startDate/endDate are the new BRD fields. To stay backward compatible with the
+// existing form (which still sends `name`/`dateParsed`), the new fields are
+// optional and mirrored in the route. A title (name OR titleAr) is still required.
+const activityBase = {
+  name: z.string().min(1).max(120).optional(),
+  titleAr: z.string().min(3, { message: "TITLE_TOO_SHORT" }).max(120).nullish(),
+  titleEn: z.string().min(3).max(120).nullish(),
   dateText: z.string().nullish(),
   dateParsed: z.coerce.date().nullish(),
-  typeId: z.number().int().positive().optional(),
+  startDate: z.coerce.date().nullish(),
+  endDate: z.coerce.date().nullish(),
+  description: descriptionField,
+  images: imagesField,
+  typeId: z.number().int().positive(),
   subtypeId: z.number().int().positive().nullish(),
   countryId: z.number().int().positive().nullish(),
   organizationId: z.number().int().positive().nullish(),
   lat: z.number().min(-90).max(90).nullish(),
   lng: z.number().min(-180).max(180).nullish(),
-});
+};
+
+// endDate must not precede startDate (BRD #22).
+const endAfterStart = (v: { startDate?: Date | null; endDate?: Date | null }) =>
+  !v.startDate || !v.endDate || v.endDate >= v.startDate;
+
+export const activityCreate = z
+  .object(activityBase)
+  .refine((v) => v.name || v.titleAr, {
+    message: "TITLE_REQUIRED",
+    path: ["titleAr"],
+  })
+  .refine((v) => v.countryId || v.organizationId, {
+    message: "Activity must belong to a country or an organization",
+    path: ["countryId"],
+  })
+  .refine(endAfterStart, { message: "END_BEFORE_START", path: ["endDate"] });
+
+export const activityUpdate = z
+  .object({
+    ...activityBase,
+    typeId: z.number().int().positive().optional(),
+  })
+  .partial()
+  .refine(endAfterStart, { message: "END_BEFORE_START", path: ["endDate"] });
 
 export const USER_ROLES = ["admin", "editor", "viewer"] as const;
 
