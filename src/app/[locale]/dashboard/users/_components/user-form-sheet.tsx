@@ -16,10 +16,14 @@ interface ApiEnvelope<T> {
   error: { message: string; code?: string; details?: unknown } | null;
 }
 
+const USER_ROLES = ["admin", "editor", "viewer"] as const;
+type UserRole = (typeof USER_ROLES)[number];
+
 interface FormState {
   name: string;
   email: string;
   password: string;
+  role: UserRole;
   isActive: boolean;
 }
 
@@ -27,6 +31,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   email: "",
   password: "",
+  role: "admin",
   isActive: true,
 };
 
@@ -35,6 +40,9 @@ function userToForm(user: AdminUser): FormState {
     name: user.name ?? "",
     email: user.email,
     password: "",
+    role: (USER_ROLES as readonly string[]).includes(user.role)
+      ? (user.role as UserRole)
+      : "admin",
     isActive: user.isActive,
   };
 }
@@ -146,9 +154,9 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
     const payload: Record<string, unknown> = {
       email: form.email.trim(),
       name: trimmedName ? trimmedName : null,
+      role: form.role,
       isActive: form.isActive,
     };
-    if (!isEdit) payload.role = "admin";
     if (form.password.length > 0) payload.password = form.password;
 
     setSubmitting(true);
@@ -273,6 +281,23 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
                   isEdit ? t("formFieldPasswordPlaceholderEdit") : undefined
                 }
               />
+            </Field>
+
+            <Field
+              label={t("formFieldRole")}
+              required
+              hint={t("formFieldRoleHint")}
+            >
+              <select
+                value={form.role}
+                onChange={(e) => update("role", e.target.value as UserRole)}
+                className={inputCls(false)}
+                dir="rtl"
+              >
+                <option value="admin">{t("roleAdmin")}</option>
+                <option value="editor">{t("roleEditor")}</option>
+                <option value="viewer">{t("roleViewer")}</option>
+              </select>
             </Field>
 
             <Field label={t("formFieldStatus")}>

@@ -23,6 +23,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { resolveApiErrorMessage } from "@/lib/api-error";
 import { uploadFile } from "@/utils/upload-file";
 
 import type { ApiActivity } from "../_lib/api";
@@ -111,27 +112,56 @@ const EMPTY_FORM: FormState = {
 const MAX_IMAGES = 5;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const RATIO_TOLERANCE = 0.05; // 16:9 ± 5%
+const TARGET_RATIO = 16 / 9;
 
 const wordCount = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 const DESC_MIN_WORDS = 50;
 const DESC_MAX_WORDS = 150;
 
-/** Validate one image file against type/size, then async-check the 16:9 ratio.
-    Returns a translation-key error string, or null when the image is valid. */
-function checkImageRatio(file: File): Promise<boolean> {
+/** Accept any image and center-crop it to a 16:9 aspect ratio on a canvas
+    before upload, so stored images are always uniform (BRD #38). Already-16:9
+    images pass through unchanged. Returns a new File, or the original if the
+    image can't be processed. */
+function cropTo16x9(file: File): Promise<File> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(url);
-      if (!img.naturalWidth || !img.naturalHeight) return resolve(false);
-      const ratio = img.naturalWidth / img.naturalHeight;
-      resolve(Math.abs(ratio - 16 / 9) <= (16 / 9) * RATIO_TOLERANCE);
+      const { naturalWidth: w, naturalHeight: h } = img;
+      if (!w || !h) return resolve(file);
+      // Already 16:9 (within 1px) → no crop needed.
+      if (Math.abs(w / h - TARGET_RATIO) < 0.01) return resolve(file);
+      // Compute the largest centered 16:9 rectangle that fits the source.
+      let cropW = w;
+      let cropH = Math.round(w / TARGET_RATIO);
+      if (cropH > h) {
+        cropH = h;
+        cropW = Math.round(h * TARGET_RATIO);
+      }
+      const sx = Math.round((w - cropW) / 2);
+      const sy = Math.round((h - cropH) / 2);
+      const canvas = document.createElement("canvas");
+      canvas.width = cropW;
+      canvas.height = cropH;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(file);
+      ctx.drawImage(img, sx, sy, cropW, cropH, 0, 0, cropW, cropH);
+      const type = file.type === "image/png" ? "image/png" : "image/jpeg";
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) return resolve(file);
+          const ext = type === "image/png" ? "png" : "jpg";
+          const base = file.name.replace(/\.[^.]+$/, "");
+          resolve(new File([blob], `${base}-16x9.${ext}`, { type }));
+        },
+        type,
+        0.9,
+      );
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      resolve(false);
+      resolve(file);
     };
     img.src = url;
   });
@@ -210,21 +240,16 @@ export function ActivityFormSheet({ open, onOpenChange, initial }: Props) {
   const router = useRouter();
   const isEdit = !!initial;
 
-  // Resolve a server error code/key to a localized string, falling back to the
-  // raw message when the key is unknown.
+  // Resolve a server error code/key to a localized string (shared helper used
+  // by every dashboard form for consistent error messages).
   const resolveApiError = useCallback(
-    (code?: string, message?: string): string => {
-      const key = code && code !== "VALIDATION_ERROR" ? code : message;
-      if (key) {
-        try {
-          const translated = tErr(key as never);
-          if (translated && translated !== key) return translated;
-        } catch {
-          /* unknown key — fall through to raw message */
-        }
-      }
-      return message ?? t("formErrorGenericUpdate");
-    },
+    (code?: string, message?: string): string =>
+      resolveApiErrorMessage(
+        (k) => tErr(k as never),
+        code,
+        message,
+        t("formErrorGenericUpdate")
+      ),
     [tErr, t]
   );
 
@@ -401,13 +426,10 @@ export function ActivityFormSheet({ open, onOpenChange, initial }: Props) {
             setImageError(t("formErrorImageSize"));
             continue;
           }
-          const ratioOk = await checkImageRatio(file);
-          if (!ratioOk) {
-            setImageError(t("formErrorImageRatio"));
-            continue;
-          }
           try {
-            const path = await uploadFile(file);
+            // Accept any ratio: auto center-crop to 16:9 before upload.
+            const prepared = await cropTo16x9(file);
+            const path = await uploadFile(prepared);
             if (path) {
               setForm((prev) =>
                 prev.images.length >= MAX_IMAGES
