@@ -7,11 +7,20 @@ import {
   useState,
 } from "react";
 
-import { Pencil, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useConfirmDialog } from "@/components/dialog";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   type Column,
   type QuickFilter,
@@ -47,6 +56,27 @@ export interface ResourceRowAction<TItem> {
   hidden?: (item: TItem) => boolean;
 }
 
+export interface ResourceTransferTarget {
+  id: number;
+  label: string;
+}
+
+/** BRD feedback #7: when a DELETE is blocked because the record still has
+    linked activities (HTTP 409, code HAS_ACTIVITIES), the table opens a
+    transfer dialog so the user can move those activities to another record
+    before the delete proceeds via `?transferTo=<id>`. */
+export interface ResourceTransferConfig<TItem> {
+  fetchTargets: (item: TItem) => Promise<ResourceTransferTarget[]>;
+  title: string;
+  message: (item: TItem, count: number) => string;
+  selectLabel: string;
+  selectPlaceholder: string;
+  confirmText: string;
+  cancelText: string;
+  successText?: (item: TItem) => string;
+  errorText?: string;
+}
+
 export interface ResourceDeleteConfig<TItem> {
   endpoint: (item: TItem) => string;
   title: string;
@@ -56,6 +86,7 @@ export interface ResourceDeleteConfig<TItem> {
   method?: "DELETE" | "POST";
   successText?: string | ((item: TItem) => string);
   errorText?: string | ((item: TItem) => string);
+  transfer?: ResourceTransferConfig<TItem>;
 }
 
 export interface ResourceUrlStateLike {
@@ -154,6 +185,14 @@ export function ResourceTable<
   const router = useRouter();
   const confirm = useConfirmDialog();
 
+  const [transferState, setTransferState] = useState<{
+    item: TItem;
+    count: number;
+    targets: ResourceTransferTarget[];
+  } | null>(null);
+  const [transferTo, setTransferTo] = useState("");
+  const [transferBusy, setTransferBusy] = useState(false);
+
   const [searchInput, setSearchInput] = useState(urlState.q);
   const [internalSort, setInternalSort] = useState<SortState>(
     initialSort ?? null
@@ -197,6 +236,11 @@ export function ResourceTable<
     return indexed.map((x) => x.row);
   }, [rows, columns, activeSort]);
 
+  const genericDeleteError = (item: TItem) =>
+    typeof onDelete?.errorText === "function"
+      ? onDelete.errorText(item)
+      : (onDelete?.errorText ?? "تعذّر الحذف، حاول مرة أخرى");
+
   const handleDelete = async (item: TItem) => {
     if (!onDelete) return;
     await confirm({
@@ -206,27 +250,68 @@ export function ResourceTable<
       confirmText: onDelete.confirmText ?? deleteLabel,
       cancelText: onDelete.cancelText ?? "إلغاء",
       onConfirm: async () => {
-        try {
-          const res = await fetch(onDelete.endpoint(item), {
-            method: onDelete.method ?? "DELETE",
-          });
-          if (!res.ok) throw new Error("Delete failed");
+        const res = await fetch(onDelete.endpoint(item), {
+          method: onDelete.method ?? "DELETE",
+        });
+        if (res.ok) {
           const success =
             typeof onDelete.successText === "function"
               ? onDelete.successText(item)
               : (onDelete.successText ?? "تم الحذف بنجاح");
           toast.success(success);
           router.refresh();
-        } catch (err) {
-          const error =
-            typeof onDelete.errorText === "function"
-              ? onDelete.errorText(item)
-              : (onDelete.errorText ?? "تعذّر الحذف، حاول مرة أخرى");
-          toast.error(error);
-          throw err;
+          return;
         }
+        // Blocked by linked activities → open the transfer dialog (BRD #7).
+        let body: { error?: { code?: string; details?: unknown } } | null = null;
+        try {
+          body = await res.json();
+        } catch {
+          /* non-JSON */
+        }
+        if (
+          res.status === 409 &&
+          body?.error?.code === "HAS_ACTIVITIES" &&
+          onDelete.transfer
+        ) {
+          const count =
+            (body.error.details as { activityCount?: number } | undefined)
+              ?.activityCount ?? 0;
+          try {
+            const targets = await onDelete.transfer.fetchTargets(item);
+            setTransferState({ item, count, targets });
+            setTransferTo("");
+          } catch {
+            toast.error(genericDeleteError(item));
+          }
+          return;
+        }
+        toast.error(genericDeleteError(item));
+        throw new Error("Delete failed");
       },
     });
+  };
+
+  const performTransfer = async () => {
+    if (!onDelete?.transfer || !transferState || !transferTo) return;
+    setTransferBusy(true);
+    try {
+      const res = await fetch(
+        `${onDelete.endpoint(transferState.item)}?transferTo=${transferTo}`,
+        { method: "DELETE" },
+      );
+      if (!res.ok) throw new Error("Transfer failed");
+      toast.success(
+        onDelete.transfer.successText?.(transferState.item) ??
+          "تم نقل الأنشطة والحذف بنجاح",
+      );
+      setTransferState(null);
+      router.refresh();
+    } catch {
+      toast.error(onDelete.transfer.errorText ?? genericDeleteError(transferState.item));
+    } finally {
+      setTransferBusy(false);
+    }
   };
 
   const renderRowActions =
@@ -281,6 +366,7 @@ export function ResourceTable<
   };
 
   return (
+    <>
     <Table<TRow>
       title={title}
       description={description}
@@ -321,6 +407,74 @@ export function ResourceTable<
       pageSizeOptions={pageSizeOptions}
       bulkActions={bulkActions}
     />
+
+    {onDelete?.transfer && (
+      <Dialog
+        open={!!transferState}
+        onOpenChange={(open) => {
+          if (!open && !transferBusy) setTransferState(null);
+        }}
+      >
+        <DialogContent dir="rtl" className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle>{onDelete.transfer.title}</DialogTitle>
+            {transferState && (
+              <DialogDescription>
+                {onDelete.transfer.message(
+                  transferState.item,
+                  transferState.count,
+                )}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <label className="block">
+            <span className="text-aws-text mb-1 block text-[13px] font-semibold">
+              {onDelete.transfer.selectLabel}
+            </span>
+            <select
+              value={transferTo}
+              onChange={(e) => setTransferTo(e.target.value)}
+              disabled={transferBusy}
+              className="border-aws-border focus:border-aws-link h-9 w-full rounded border bg-white px-3 text-[13px] outline-none"
+              dir="rtl"
+            >
+              <option value="">{onDelete.transfer.selectPlaceholder}</option>
+              {transferState?.targets.map((target) => (
+                <option key={target.id} value={target.id}>
+                  {target.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="default"
+              onClick={() => setTransferState(null)}
+              disabled={transferBusy}
+            >
+              {onDelete.transfer.cancelText}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              onClick={performTransfer}
+              disabled={transferBusy || !transferTo}
+              icon={
+                transferBusy ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : undefined
+              }
+            >
+              {onDelete.transfer.confirmText}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )}
+    </>
   );
 }
 
