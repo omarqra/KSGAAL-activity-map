@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 import { guessOrgKind, regionForCode } from "./seed-mappings";
+import { seedRoles } from "./seed-roles-fn";
 import { seedAdminUser } from "./seed-user";
 
 const prisma = new PrismaClient();
@@ -262,6 +263,9 @@ async function main() {
 
   console.log("→ seeding admin user");
   await seedAdminUser(prisma);
+
+  console.log("→ seeding roles & linking users");
+  await seedRoles(prisma);
 }
 
 main()

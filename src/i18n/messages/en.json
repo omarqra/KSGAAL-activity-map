@@ -137,6 +137,7 @@
     "colId": "ID",
     "colUser": "User",
     "colRole": "Role",
+    "noRole": "No role",
     "colStatus": "Status",
     "colLastLogin": "Last sign-in",
     "colCreatedAt": "Created",
