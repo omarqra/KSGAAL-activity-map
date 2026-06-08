@@ -175,6 +175,7 @@ export function MainTypesTable({ types }: MainTypesTableProps) {
       <ResourceTable<ActivityType, MainTypeRow>
         urlState={state}
         setParams={setParams}
+        resource="activityTypes"
         title={
           <>
             {t("mainTableTitle")}{" "}

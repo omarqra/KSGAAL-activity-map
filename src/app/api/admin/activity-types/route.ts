@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { NextRequest } from "next/server";
 
 import { auditFromRequest } from "@/lib/auth/audit";
-import { requireApiRole, requireApiUser } from "@/lib/auth/require-api-user";
+import { requireApiPermission, requireApiUser } from "@/lib/auth/require-api-user";
 import { prisma } from "@/lib/prisma";
 
 import { created, handleError, ok } from "../../_lib/http";
@@ -48,7 +48,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireApiRole(["admin", "editor"]);
+    const auth = await requireApiPermission("activityTypes", "create");
     if (!auth.ok) return auth.response;
     const body = activityTypeCreate.parse(await req.json());
     const key = await nextUniqueActivityTypeKey();

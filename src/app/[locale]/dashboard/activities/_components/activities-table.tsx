@@ -154,6 +154,7 @@ export function ActivitiesTable({ items, total }: ActivitiesTableProps) {
       <ResourceTable<ApiActivity, ActivityRow>
         urlState={state}
         setParams={setParams}
+        resource="activities"
         title={
           <>
             {t("tableTitle")}{" "}

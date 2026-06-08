@@ -228,6 +228,7 @@ export function CountriesTable({ items, total }: CountriesTableProps) {
       <ResourceTable<Country, CountryTableRow>
         urlState={state}
         setParams={setParams}
+        resource="countries"
         title={
           <>
             {t("tableTitle")}{" "}

@@ -1,5 +1,7 @@
 import { Activity, CalendarRange, Globe2, TrendingUp } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+
+import { requirePageAccess } from "@/lib/auth/require-page-access";
 
 
 
@@ -98,6 +100,8 @@ function buildKpis(summary: ActivitiesSummary, t: T): KpiItem[] {
 }
 
 export default async function ActivitiesPage({ searchParams }: PageProps) {
+  const locale = await getLocale();
+  await requirePageAccess(locale, "activities", "read");
   const t = await getTranslations("ActivitiesPage");
   const sp = (await searchParams) ?? {};
   const tabKey = sp.tab ?? "all";

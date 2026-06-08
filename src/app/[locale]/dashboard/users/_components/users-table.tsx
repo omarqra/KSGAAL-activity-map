@@ -251,6 +251,7 @@ export function UsersTable({ items }: UsersTableProps) {
       <ResourceTable<AdminUser, UserRow>
         urlState={state}
         setParams={setParams}
+        resource="users"
         title={
           <>
             {t("tableTitle")}{" "}

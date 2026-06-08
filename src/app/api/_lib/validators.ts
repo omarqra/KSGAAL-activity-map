@@ -147,13 +147,34 @@ export const activityUpdate = z
   .partial()
   .refine(endAfterStart, { message: "END_BEFORE_START", path: ["endDate"] });
 
+// RBAC: a role carries a permission map of resource → { action: boolean }.
+export const roleCreate = z.object({
+  key: z
+    .string()
+    .min(2)
+    .max(40)
+    .regex(/^[a-z0-9_-]+$/, { message: "ROLE_KEY_INVALID" }),
+  nameAr: z.string().min(1),
+  nameEn: z.string().min(1),
+  permissions: z.record(z.string(), z.record(z.string(), z.boolean())).optional(),
+});
+export const roleUpdate = z
+  .object({
+    nameAr: z.string().min(1),
+    nameEn: z.string().min(1),
+    permissions: z.record(z.string(), z.record(z.string(), z.boolean())),
+  })
+  .partial();
+
 export const USER_ROLES = ["admin", "editor", "viewer"] as const;
 
 export const userCreate = z.object({
   email: z.string().email().max(160),
   name: z.string().min(1).max(120).nullish(),
   password: passwordSchema,
-  role: z.enum(USER_ROLES).default("admin"),
+  // Role may be a built-in key or a custom role; roleId links to the Role row.
+  role: z.string().min(1).optional(),
+  roleId: z.number().int().positive().nullish(),
   isActive: z.boolean().optional(),
 });
 export const userUpdate = z
@@ -161,7 +182,8 @@ export const userUpdate = z
     email: z.string().email().max(160).optional(),
     name: z.string().min(1).max(120).nullish(),
     password: passwordSchema.optional(),
-    role: z.enum(USER_ROLES).optional(),
+    role: z.string().min(1).optional(),
+    roleId: z.number().int().positive().nullish(),
     isActive: z.boolean().optional(),
   })
   .partial();

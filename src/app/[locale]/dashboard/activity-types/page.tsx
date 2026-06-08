@@ -1,5 +1,7 @@
 import { Clock, Folder, FolderTree, Layers } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+
+import { requirePageAccess } from "@/lib/auth/require-page-access";
 
 import type { Tab } from "@/components/dashboard/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -134,6 +136,8 @@ interface PageProps {
 }
 
 export default async function ActivityTypesPage({ searchParams }: PageProps) {
+  const locale = await getLocale();
+  await requirePageAccess(locale, "activityTypes", "read");
   const t = await getTranslations("ActivityTypesPage");
   const sp = (await searchParams) ?? {};
   const activeTab: "main" | "sub" = sp.tab === "sub" ? "sub" : "main";

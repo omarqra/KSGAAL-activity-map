@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { useConfirmDialog } from "@/components/dialog";
+import { usePermissions } from "@/components/permissions/permissions-provider";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,7 @@ import {
   type SortState,
   Table,
 } from "@/components/ui/table";
+import { type Resource } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 import type { UrlStateValue } from "./use-resource-url-state";
@@ -129,6 +131,10 @@ export interface ResourceTableProps<
   onDelete?: ResourceDeleteConfig<TItem>;
   extraRowActions?: (item: TItem) => ResourceRowAction<TItem>[];
 
+  // RBAC: when set, edit/delete row actions are hidden unless the current user
+  // has the matching update/delete permission for this resource.
+  resource?: Resource;
+
   // Labels for default actions
   editLabel?: string;
   deleteLabel?: string;
@@ -169,6 +175,7 @@ export function ResourceTable<
   onEdit,
   onDelete,
   extraRowActions,
+  resource,
   editLabel = "تعديل",
   deleteLabel = "حذف",
   initialSort,
@@ -184,6 +191,9 @@ export function ResourceTable<
 }: ResourceTableProps<TItem, TRow>) {
   const router = useRouter();
   const confirm = useConfirmDialog();
+  const { can } = usePermissions();
+  const allowEdit = !resource || can(resource, "update");
+  const allowDelete = !resource || can(resource, "delete");
 
   const [transferState, setTransferState] = useState<{
     item: TItem;
@@ -314,16 +324,19 @@ export function ResourceTable<
     }
   };
 
+  const showEdit = onEdit && allowEdit;
+  const showDelete = onDelete && allowDelete;
+
   const renderRowActions =
-    onEdit || onDelete || extraRowActions
+    showEdit || showDelete || extraRowActions
       ? (row: TRow) => {
           const extras = extraRowActions?.(row.source) ?? [];
           return (
             <div className="flex items-center justify-center gap-1">
-              {onEdit && (
+              {showEdit && (
                 <RowIconButton
                   label={editLabel}
-                  onClick={() => onEdit(row.source)}
+                  onClick={() => onEdit!(row.source)}
                   icon={<Pencil className="h-3.5 w-3.5" />}
                 />
               )}
@@ -338,7 +351,7 @@ export function ResourceTable<
                     variant={a.variant ?? "default"}
                   />
                 ))}
-              {onDelete && (
+              {showDelete && (
                 <RowIconButton
                   label={deleteLabel}
                   onClick={() => handleDelete(row.source)}

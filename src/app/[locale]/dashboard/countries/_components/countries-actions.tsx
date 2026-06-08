@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/components/permissions/permissions-provider";
 
 import type { Country } from "../_lib/api";
 import { CountryFormSheet } from "./country-form-sheet";
@@ -76,6 +77,7 @@ function downloadFile(filename: string, content: string, mime: string) {
 
 export function CountriesActions() {
   const t = useTranslations("CountriesPage");
+  const canCreate = usePermission("countries", "create");
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
@@ -124,6 +126,7 @@ export function CountriesActions() {
       >
         {exporting ? t("actionExporting") : t("actionExport")}
       </Button>
+      {canCreate && (
       <Button
         type="button"
         variant="primary"
@@ -132,6 +135,7 @@ export function CountriesActions() {
       >
         {t("actionCreate")}
       </Button>
+      )}
 
       <CountryFormSheet
         open={createOpen}

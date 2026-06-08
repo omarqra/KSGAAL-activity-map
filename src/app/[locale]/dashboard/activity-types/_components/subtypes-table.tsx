@@ -179,6 +179,7 @@ export function SubtypesTable({ subtypes, mainTypes }: SubtypesTableProps) {
       <ResourceTable<ActivitySubtype, SubtypeRow>
         urlState={state}
         setParams={setParams}
+        resource="activityTypes"
         title={
           <>
             {t("subTableTitle")}{" "}

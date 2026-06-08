@@ -195,6 +195,7 @@ export function OrganizationsTable({ items, total }: OrganizationsTableProps) {
       <ResourceTable<Organization, OrganizationRow>
         urlState={state}
         setParams={setParams}
+        resource="organizations"
         title={
           <>
             {t("tableTitle")}{" "}

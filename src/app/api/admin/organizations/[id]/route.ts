@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 
 import { auditFromRequest } from "@/lib/auth/audit";
-import { requireApiRole, requireApiUser } from "@/lib/auth/require-api-user";
+import { requireApiPermission, requireApiUser } from "@/lib/auth/require-api-user";
 import { prisma } from "@/lib/prisma";
 
 import { fail, handleError, notFound, ok, parseId } from "../../../_lib/http";
@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireApiRole(["admin", "editor"]);
+    const auth = await requireApiPermission("organizations", "update");
     if (!auth.ok) return auth.response;
     const id = parseId((await params).id);
     if (!id) return fail("Invalid id", 400);
@@ -55,7 +55,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
-    const auth = await requireApiRole(["admin", "editor"]);
+    const auth = await requireApiPermission("organizations", "delete");
     if (!auth.ok) return auth.response;
     const id = parseId((await params).id);
     if (!id) return fail("Invalid id", 400);

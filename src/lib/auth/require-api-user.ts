@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
 
+import {
+  type Action,
+  type PermissionMap,
+  type Resource,
+  ROLE_PRESETS,
+  can,
+  normalizePermissions,
+} from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 import { getCurrentSession } from "./session";
@@ -9,6 +17,8 @@ export type ApiAuthenticatedUser = {
   email: string;
   name: string | null;
   role: string;
+  roleId: number | null;
+  permissions: PermissionMap;
 };
 
 export type ApiAuthOk = { ok: true; user: ApiAuthenticatedUser };
@@ -47,12 +57,26 @@ export async function requireApiUser(): Promise<ApiAuthResult> {
 
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, name: true, role: true, isActive: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      roleId: true,
+      isActive: true,
+      roleRef: { select: { permissions: true } },
+    },
   });
 
   if (!user || !user.isActive) {
     return { ok: false, response: unauthorized() };
   }
+
+  // Effective permissions: prefer the linked role's stored map; fall back to the
+  // preset for the legacy role string so users without a roleId still work.
+  const permissions = user.roleRef
+    ? normalizePermissions(user.roleRef.permissions)
+    : (ROLE_PRESETS[user.role]?.permissions ?? {});
 
   return {
     ok: true,
@@ -61,8 +85,26 @@ export async function requireApiUser(): Promise<ApiAuthResult> {
       email: user.email,
       name: user.name,
       role: user.role,
+      roleId: user.roleId,
+      permissions,
     },
   };
+}
+
+/**
+ * Authenticate + authorize by permission. The user's effective permissions must
+ * grant `action` on `resource`. Returns 401 if unauthenticated, 403 otherwise.
+ */
+export async function requireApiPermission(
+  resource: Resource,
+  action: Action
+): Promise<ApiAuthResult> {
+  const result = await requireApiUser();
+  if (!result.ok) return result;
+  if (!can(result.user.permissions, resource, action)) {
+    return { ok: false, response: forbidden() };
+  }
+  return result;
 }
 
 /**

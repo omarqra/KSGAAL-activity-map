@@ -14,10 +14,13 @@ import {
   type LucideIcon,
   PanelRightClose,
   Shapes,
+  ShieldCheck,
   Users,
 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 
+import { usePermissions } from "@/components/permissions/permissions-provider";
+import { type Action, type Resource } from "@/lib/permissions";
 import { cn } from "@/lib/utils";
 
 import type { SidebarCounts } from "@/app/[locale]/dashboard/_lib/api";
@@ -28,6 +31,7 @@ interface NavItem {
   href: string;
   countKey?: keyof SidebarCounts;
   badge?: string;
+  permission?: { resource: Resource; action: Action };
 }
 
 interface NavSection {
@@ -50,37 +54,47 @@ const sections: NavSection[] = [
         icon: Building2,
         href: "/dashboard/organizations",
         countKey: "organizations",
+        permission: { resource: "organizations", action: "read" },
       },
       {
         label: "navCountries",
         icon: Flag,
         href: "/dashboard/countries",
         countKey: "countries",
+        permission: { resource: "countries", action: "read" },
       },
       {
         label: "navMainTypes",
         icon: Shapes,
         href: "/dashboard/activity-types?tab=main",
         countKey: "activityTypes",
+        permission: { resource: "activityTypes", action: "read" },
       },
       {
         label: "navSubTypes",
         icon: Layers,
         href: "/dashboard/activity-types?tab=sub",
         countKey: "activitySubtypes",
+        permission: { resource: "activityTypes", action: "read" },
       },
       {
         label: "navActivities",
         icon: Activity,
         href: "/dashboard/activities",
         countKey: "activities",
+        permission: { resource: "activities", action: "read" },
       },
     ],
   },
   {
     title: "sectionTools",
     items: [
-      { label: "navReports", icon: FileBarChart, href: "/dashboard/reports" },
+      {
+        label: "navReports",
+        icon: FileBarChart,
+        href: "/dashboard/reports",
+        permission: { resource: "activities", action: "read" },
+      },
     ],
   },
   {
@@ -91,6 +105,13 @@ const sections: NavSection[] = [
         icon: Users,
         href: "/dashboard/users",
         countKey: "users",
+        permission: { resource: "users", action: "read" },
+      },
+      {
+        label: "navRoles",
+        icon: ShieldCheck,
+        href: "/dashboard/roles",
+        permission: { resource: "roles", action: "read" },
       },
     ],
   },
@@ -106,6 +127,7 @@ export default function Sidebar({ counts }: SidebarProps) {
 
   const locale = useLocale();
   const t = useTranslations("Layout");
+  const { can } = usePermissions();
 
   const isActiveLink = (href: string): boolean => {
     if (href === "/dashboard") {
@@ -139,7 +161,17 @@ export default function Sidebar({ counts }: SidebarProps) {
       </div>
 
       <nav className="pb-3">
-        {sections.map((section, idx) => (
+        {sections
+          .map((section) => ({
+            ...section,
+            items: section.items.filter(
+              (item) =>
+                !item.permission ||
+                can(item.permission.resource, item.permission.action),
+            ),
+          }))
+          .filter((section) => section.items.length > 0)
+          .map((section, idx) => (
           <div key={section.title} className={cn(idx > 0 && "mt-4")}>
             <div className="text-aws-text3/80 px-5 pt-1 pb-1.5 text-[11px] font-semibold">
               {t(section.title as any)}
