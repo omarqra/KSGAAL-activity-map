@@ -7,7 +7,7 @@
 <style>
   :root {
     --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --bg: #fff; --panel: #f8fafc;
-    --accent: #b45309; --gold: #c9a84c;
+    --accent: #b45309; --gold: #c9a84c; --red: #c1121f;
     --pass-bg: #dcfce7; --pass: #15803d;
     --warn-bg: #fef3c7; --warn: #b45309;
   }
@@ -18,9 +18,22 @@
   h1, h2 { color: var(--ink); line-height: 1.3; margin: 0 0 10px; }
   h1 { font-size: 28px; }
   h2 { font-size: 18px; margin-top: 30px; padding-bottom: 6px; border-bottom: 2px solid var(--accent); }
+  h3 { font-size: 16px; margin-top: 18px; }
+  h4 { font-size: 14.5px; margin-top: 14px; margin-bottom: 6px; }
   p, li { color: var(--ink); }
   ul { padding-right: 22px; padding-left: 0; }
   li { margin-bottom: 4px; }
+  code { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; font-family: "SF Mono", Consolas, Menlo, monospace; direction: ltr; padding: 1px 5px; font-size: 12.5px; display: inline-block; }
+
+  /* بنود مُضافة أو معدّلة لمعالجة ملاحظات الجودة التقنية */
+  .q, td.q, li.q, p.q, span.q { color: #c1121f; }
+  h2.q, h3.q { color: #c1121f; border-color: #c1121f; }
+  code.q { color: #c1121f; }
+
+  /* بنود مُضافة أو معدّلة وفق ملاحظات المراجعة الأخيرة */
+  .v, td.v, li.v, p.v, span.v { color: #c1121f; }
+  h2.v, h3.v { color: #c1121f; border-color: #c1121f; }
+  code.v { color: #c1121f; }
 
   .cover { border-top: 6px solid var(--accent); padding: 16px 0 22px; margin-bottom: 10px; border-bottom: 1px solid var(--line); }
   .eyebrow { letter-spacing: 2px; font-size: 11px; color: var(--gold); font-weight: 700; margin-bottom: 10px; }
@@ -29,18 +42,30 @@
   .meta { margin-top: 16px; color: var(--muted); font-size: 13px; }
   .meta span { margin-left: 18px; }
   .meta strong { color: var(--ink); }
+  .legend { margin-top: 12px; font-size: 12.5px; color: #c1121f; font-weight: 700; }
 
   table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; }
   th, td { text-align: right; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { background: var(--panel); font-weight: 700; font-size: 12px; color: var(--muted); border-bottom: 2px solid var(--line); }
   td.id { font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 12px; color: var(--accent); white-space: nowrap; font-weight: 700; direction: ltr; text-align: left; }
+  td.id.q { color: #c1121f; }
+  td.center, th.center { text-align: center; }
 
   .badge { display: inline-block; font-size: 11px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
   .badge.must  { background: #fee2e2; color: #b91c1c; }
   .badge.should{ background: var(--warn-bg); color: var(--warn); }
-  .badge.could { background: var(--pass-bg); color: var(--pass); }
+
+  .flow { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; margin: 10px 0; font-size: 13.5px; color: #c1121f; }
+  .flow b { color: #c1121f; }
 
   footer { margin-top: 36px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+
+  .imgcap { margin: 16px 0; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+  .imgcap b { font-size: 14px; }
+  .imgcap .lnk { font-family: "SF Mono", Consolas, Menlo, monospace; font-size: 11.5px; color: var(--accent); direction: ltr; display: inline-block; margin: 2px 0; }
+  .imgcap .cap { font-size: 12.5px; color: var(--muted); }
+  .imgbox { margin-top: 10px; min-height: 220px; border: 2px dashed #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: #94a3b8; font-size: 12px; background: #fff; }
+  .note { background: var(--panel); border-right: 4px solid var(--accent); padding: 12px 16px; margin: 14px 0; border-radius: 4px 0 0 4px; font-size: 13.5px; }
 
   @media print {
     body { background: #fff; font-size: 11.5pt; }
@@ -64,143 +89,225 @@
     <div class="eyebrow">وثيقة متطلبات العمل</div>
     <h1>وثيقة المتطلبات</h1>
     <div class="subtitle">مجمع الملك سلمان العالمي للغة العربية — الموقع العام + لوحة التحكم الإدارية</div>
-    <div class="meta"><span><strong>الإصدار</strong> v1</span><span><strong>التاريخ</strong> 4 مايو 2026</span><span><strong>المرحلة</strong> ما قبل الإطلاق</span></div>
+    <div class="meta"><span><strong>الإصدار</strong> v2</span><span><strong>التاريخ</strong> يونيو 2026</span><span><strong>المرحلة</strong> ما قبل الإطلاق</span></div>
+    <div class="legend">النص باللون الأحمر = بنود مُضافة أو معدّلة لمعالجة ملاحظات الجودة التقنية (39 ملاحظة).</div>
+  </section>
+
+  <section>
+    <h2 class="v">معلومات الوثيقة</h2>
+    <table>
+      <tbody>
+        <tr><td class="v" style="width:30%"><strong>مالك الوثيقة (Document Owner)</strong></td><td class="v">إدارة المشروع في مجمع الملك سلمان العالمي للغة العربية — الجهة المسؤولة عن اعتماد الوثيقة وتحديثها.</td></tr>
+        <tr><td class="v"><strong>أصحاب المصلحة (Stakeholders)</strong></td><td class="v">الإدارة العليا للمجمع، فريق المحتوى والأنشطة الدولية، الفريق التقني (التطوير والتشغيل)، فريق التسويق الرقمي و SEO، والزوار/الجمهور المستهدف للموقع العام.</td></tr>
+      </tbody>
+    </table>
   </section>
 
   <section>
     <h2>1. نظرة عامة</h2>
     <p>
-      موقع إلكتروني عام مكوَّن من صفحة واحدة يعرض كرة أرضية تفاعلية لأنشطة المجمع حول العالم، إلى جانب لوحة تحكم إدارية داخلية يستخدمها فريق المجمع لإنشاء الأنشطة وتعديلها ونشرها. يقرأ الموقع العام البيانات من ملف منظَّم تنتجه لوحة التحكم.
+      موقع إلكتروني عام مكوَّن من صفحة واحدة يعرض كرة أرضية تفاعلية لأنشطة المجمع حول العالم، إلى جانب لوحة تحكم إدارية داخلية يستخدمها فريق المجمع لإنشاء الأنشطة وتعديلها ونشرها. <span class="q">يقرأ الموقع العام البيانات من قاعدة البيانات مباشرةً عبر طبقة خدمة موحَّدة — وهي المصدر الوحيد للبيانات في كل عمليات القراءة والكتابة.</span>
     </p>
   </section>
 
   <section>
     <h2>2. النطاق</h2>
-    <p><strong>داخل النطاق:</strong> موقع عام بالعربية مع كرة أرضية تفاعلية، لوحة تحكم بمصادقة وإدارة كاملة للأنشطة، آلية للنشر، أساسات SEO و AEO، وتصميم متجاوب.</p>
-    <p><strong>خارج النطاق:</strong> النسخة الإنجليزية، صفحات منفصلة لكل نشاط، حسابات مستخدمين عامين، المدفوعات، تطبيقات الهاتف.</p>
+    <p><strong>داخل النطاق:</strong> موقع عام بالعربية مع كرة أرضية تفاعلية، <span class="q">تبديل لغة AR/EN لواجهة الموقع وحقل عنوان إنجليزي للنشاط</span>، لوحة تحكم بمصادقة <span class="q">ونظام أدوار وصلاحيات</span> وإدارة كاملة للأنشطة <span class="q">والدول والمنظمات</span>، آلية للنشر، أساسات SEO و AEO، <span class="q">نسخ احتياطي واستعادة</span>، وتصميم متجاوب.</p>
+    <p><strong>خارج النطاق:</strong> ترجمة كامل المحتوى التحريري للإنجليزية، صفحات منفصلة لكل نشاط، حسابات مستخدمين عامين، المدفوعات، تطبيقات الهاتف.</p>
   </section>
 
   <section>
-    <h2>3. المتطلبات الوظيفية</h2>
+    <h2 class="q">3. أهداف المشروع ومؤشرات النجاح</h2>
+    <table>
+      <thead><tr><th>الهدف</th><th>مؤشر القياس</th></tr></thead>
+      <tbody>
+        <tr><td class="q">إبراز أنشطة المجمع الدولية بصرياً</td><td class="q">عرض 100% من الأنشطة المعتمدة على الكرة بإحداثيات صحيحة.</td></tr>
+        <tr><td class="q">تمكين فريق المجمع من إدارة المحتوى ذاتياً</td><td class="q">إضافة/تعديل نشاط وظهوره على الموقع خلال 60 ثانية دون تدخل تقني.</td></tr>
+        <tr><td class="q">أداء وتجربة استخدام عالية</td><td class="q">Lighthouse للهاتف <span class="v">85 أو أعلى</span>؛ زمن أكبر عنصر مرئي (LCP) <span class="v">2.5 ثانية أو أقل</span>.</td></tr>
+        <tr><td class="q">ظهور في محركات البحث والإجابة</td><td class="q">فهرسة الموقع العام بالكامل واستبعاد لوحة التحكم.</td></tr>
+        <tr><td class="q">موثوقية الخدمة</td><td class="q">توافر الموقع العام <span class="v">99.5% أو أعلى</span> شهرياً.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>4. المتطلبات الوظيفية</h2>
     <table>
       <thead><tr><th>المعرف</th><th>المتطلب</th><th>الأولوية</th></tr></thead>
       <tbody>
         <tr><td class="id">FR-01</td><td>شاشة ترحيبية مع نقطة دخول واضحة إلى الكرة الأرضية.</td><td><span class="badge must">إلزامي</span></td></tr>
         <tr><td class="id">FR-02</td><td>كرة أرضية ثلاثية الأبعاد تفاعلية تدعم الدوران والتحريك والتكبير.</td><td><span class="badge must">إلزامي</span></td></tr>
         <tr><td class="id">FR-03</td><td>عرض علامات لكل نشاط منشور على الإحداثيات الصحيحة.</td><td><span class="badge must">إلزامي</span></td></tr>
-        <tr><td class="id">FR-04</td><td>لوحة الأنشطة مع تصفية حسب الدولة والنوع.</td><td><span class="badge must">إلزامي</span></td></tr>
-        <tr><td class="id">FR-05</td><td>عرض تفاصيل النشاط: العنوان، النوع، الدولة، التاريخ، الوصف.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-04</td><td class="q">لوحة الأنشطة مع تصفية موحّدة حسب النوع والتصنيف الفرعي والموقع والسنة، إضافةً إلى بحث نصّي. قائمة الفلاتر موحَّدة بين الموقع العام والدليل.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-05</td><td class="q">عرض تفاصيل النشاط: العنوان (عربي/إنجليزي)، النوع، الدولة، المنظمة، تاريخ البداية والنهاية، الوصف، ومعرض الصور.</td><td><span class="badge must">إلزامي</span></td></tr>
         <tr><td class="id">FR-06</td><td>الموقع باللغة العربية بتنسيق RTL ومتجاوب على الأجهزة المختلفة.</td><td><span class="badge must">إلزامي</span></td></tr>
-        <tr><td class="id">FR-07</td><td>تتطلب لوحة التحكم تسجيل دخول قبل الوصول إلى أي بيانات محمية.</td><td><span class="badge must">إلزامي</span></td></tr>
-        <tr><td class="id">FR-08</td><td>يستطيع المستخدمون المخوّلون إنشاء الأنشطة وتعديلها وحذفها.</td><td><span class="badge must">إلزامي</span></td></tr>
-        <tr><td class="id">FR-09</td><td>التحقق من الإدخال على جانب العميل وعلى الخادم.</td><td><span class="badge must">إلزامي</span></td></tr>
-        <tr><td class="id">FR-10</td><td>التغييرات على الأنشطة (إضافة أو تعديل) تظهر فوراً على الموقع العام دون مرحلة مسوّدة، والحذف نهائي ودائم.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-07</td><td class="q">تتطلب لوحة التحكم تسجيل دخول بمصادقة قبل الوصول إلى أي بيانات محمية (التدفق في 4.3.1).</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-08</td><td class="q">إنشاء الأنشطة وتعديلها وحذفها متاح للمستخدمين المخوّلين فقط وفق صلاحيات الدور (القسم 6).</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-09</td><td class="q">التحقق من الإدخال على جانب العميل وعلى الخادم وفق قواعد التحقق (4.1).</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-10</td><td class="q">التغييرات على الأنشطة (إضافة أو تعديل) تظهر على الموقع العام خلال 60 ثانية أو أقل بعد الحفظ، والحذف نهائي ودائم.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-11</td><td class="q">زر تبديل اللغة (AR/EN) يبدّل واجهة الموقع العام، مع حقل عنوان إنجليزي مستقل للنشاط.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-12</td><td class="q">استعادة كلمة المرور: طلب عبر البريد ← رمز صالح 30 دقيقة ← إعادة تعيين كلمة المرور.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-13</td><td class="q">تسجيل الخروج من القائمة العلوية يُنهي الجلسة ويمسح كوكي الجلسة.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-14</td><td class="q">عند انتهاء الجلسة أثناء تعديل نشاط، تُحفظ مسودة محلية وتُستعاد عند إعادة الفتح دون فقدان البيانات.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-15</td><td class="q">عند تعديل نفس النشاط من أكثر من مستخدم بالتزامن، يُطبَّق قفل تفاؤلي يعتمد على آخر تعديل مع رسالة تعارض.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-16</td><td class="q">منع حذف دولة أو منظمة مرتبطة بأنشطة، وعرض نافذة نقل الأنشطة لجهة أخرى قبل الحذف ضمن معاملة واحدة (Transaction) — التدفق في 4.3.3.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-17</td><td class="q">شاشات كاملة لإدارة الدول والمنظمات (إضافة/تعديل/حذف) في لوحة التحكم.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-18</td><td class="q">حقل «المنظمة» ضمن نموذج إنشاء/تعديل النشاط لربط النشاط بالجهة المنظِّمة.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-19</td><td class="q">رفع حتى 5 صور لكل نشاط مع التحقق من الحجم والصيغة، وقصّ تلقائي لنسبة 16:9، ورسائل فشل واضحة عند تجاوز الحجم أو الصيغة.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-20</td><td class="q">عرض صور النشاط كمعرض داخل بطاقة التفاصيل على الكرة الأرضية. <span class="v">وعند عدم وجود صور للنشاط تُعرَض البطاقة بدون معرض ودون ترك فراغ مخصص للصور. ويمكن حذف أيٍّ من الصور المرفوعة أثناء إنشاء النشاط أو تعديله قبل النشر.</span></td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-21</td><td class="q">عند غياب تاريخ النهاية، <span class="v">يُعرَض النشاط معتمداً على تاريخ البداية فقط (كنشاط بتاريخ واحد بلا مدى زمني) ولا يُخفى من الكرة أو القائمة</span>.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-22</td><td class="q">عند تداخل علامتين على نفس الموقع، تُوزَّع العلامات بنمط حلزوني (golden-angle) لإظهارها منفصلة بصرياً.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-23</td><td class="q">عند عدم تطابق أي نشاط مع التصفية، تُعرض حالة «لا توجد نتائج» وتُخفى العلامات.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-24</td><td class="q">عند انقطاع الاتصال أثناء الحفظ، تظهر رسالة خطأ مع الحفاظ على المدخلات وإتاحة إعادة المحاولة.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-25</td><td class="q">زر «إعادة الضبط» أو الضغط على الشعار يصفّر جميع الفلاتر ويعيد الكرة لوضعها الافتراضي ويستأنف الدوران التلقائي.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-26</td><td class="q">اختيار نشاط من القائمة يوجّه الكرة تلقائياً إلى موقعه الجغرافي ويُبرز علامته ويوقف الدوران التلقائي.</td><td><span class="badge should">مهم</span></td></tr>
+        <tr><td class="id q">FR-27</td><td class="q">حقلا التاريخ منفصلان: تاريخ بداية (إلزامي) وتاريخ نهاية (اختياري).</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-28</td><td class="q">حقلا العنوان منفصلان: عربي وإنجليزي، وكلاهما إلزامي.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id q">FR-29</td><td class="q">خط العرض وخط الطول حقلان مستقلان مع التحقق من النطاق الصالح لكل منهما.</td><td><span class="badge must">إلزامي</span></td></tr>
+        <tr><td class="id v">FR-30</td><td class="v">إدارة المستخدمين والأدوار في لوحة التحكم، محكومة بصلاحيات الدور (يملكها دور المسؤول Admin افتراضياً ويمكن منحها لأدوار أخرى): إنشاء المستخدمين وتعديلهم وتفعيلهم أو تعطيلهم وحذفهم وتعيين دور واحد لكل مستخدم، مع عرض بشارة تنبيه للمستخدم بدون دور؛ وإنشاء الأدوار وتعديلها وحذفها باسم عربي وإنجليزي لكل دور، وتعيين مصفوفة صلاحياتها (قراءة/إنشاء/تعديل/حذف) لكل قسم. تُفرض الصلاحيات على الخادم والواجهة معاً، ويُمنع حذف الأدوار النظامية، بما يتوافق مع نموذج الأدوار والصلاحيات (القسم 6).</td><td><span class="badge must">إلزامي</span></td></tr>
       </tbody>
     </table>
+
+    <h3 class="q">4.1 قواعد التحقق من المدخلات (معايير قبول FR-09 وFR-19 وFR-27 وFR-29)</h3>
+    <p class="q">تُطبَّق القواعد التالية إلزامياً على العميل والخادم لكل حقل، وتُعرَض رسالة خطأ واضحة عند المخالفة:</p>
+    <table>
+      <thead><tr><th>الحقل</th><th>القاعدة</th><th>إلزامي؟</th></tr></thead>
+      <tbody>
+        <tr><td class="q">العنوان (عربي)</td><td class="q">نص بين 3 و120 حرفاً.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">العنوان (إنجليزي)</td><td class="q">نص بين 3 و120 حرفاً.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">النوع</td><td class="q">اختيار من قائمة الأنواع المعرّفة.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">المنظمة</td><td class="q">اختيار من قائمة المنظمات المعرّفة.</td><td class="q">لا</td></tr>
+        <tr><td class="q">الدولة</td><td class="q">اختيار من قائمة الدول المعرّفة.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">خط العرض (Latitude)</td><td class="q">رقم ضمن النطاق −90 إلى 90.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">خط الطول (Longitude)</td><td class="q">رقم ضمن النطاق −180 إلى 180.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">تاريخ البداية</td><td class="q">تاريخ صالح.</td><td class="q">نعم</td></tr>
+        <tr><td class="q">تاريخ النهاية</td><td class="q">تاريخ صالح <span class="v">في تاريخ البداية أو بعده</span> إن وُجد.</td><td class="q">لا</td></tr>
+        <tr><td class="q">الوصف</td><td class="q">بين 50 و150 كلمة (قاعدة إلزامية لا إرشاد).</td><td class="q">نعم</td></tr>
+        <tr><td class="q">الصور</td><td class="q">حتى 5 صور، كل صورة <span class="v">بحجم 5MB أو أقل</span>، صيغة JPG/PNG/WebP، نسبة 16:9 (قصّ إلزامي).</td><td class="q">لا</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="q">4.2 رسائل النظام (معايير قبول FR-09 وFR-15 وFR-24)</h3>
+    <p class="q">جميع رسائل النجاح والفشل والتحقق معرّفة ضمن مجموعة موحّدة بالعربية والإنجليزية على كل النماذج. أمثلة تمثيلية:</p>
+    <table>
+      <thead><tr><th>الحدث</th><th>النوع</th><th>الرسالة (عربي)</th></tr></thead>
+      <tbody>
+        <tr><td class="q">تسجيل دخول ناجح</td><td class="q">نجاح</td><td class="q">تم تسجيل الدخول بنجاح.</td></tr>
+        <tr><td class="q">بيانات دخول خاطئة</td><td class="q">فشل</td><td class="q">البريد الإلكتروني أو كلمة المرور غير صحيحة.</td></tr>
+        <tr><td class="q">إرسال رمز التحقق (OTP)</td><td class="q">معلومة</td><td class="q">تم إرسال رمز التحقق إلى بريدك، صالح لمدة محدودة.</td></tr>
+        <tr><td class="q">حفظ نشاط</td><td class="q">نجاح</td><td class="q">تم حفظ النشاط وسيظهر على الموقع خلال 60 ثانية.</td></tr>
+        <tr><td class="q">مخالفة قاعدة تحقق</td><td class="q">تحقق</td><td class="q">يرجى تصحيح الحقول المميّزة وفق القواعد الموضّحة.</td></tr>
+        <tr><td class="q">تعارض تعديل متزامن</td><td class="q">فشل</td><td class="q">تم تعديل هذا النشاط من مستخدم آخر؛ يرجى إعادة التحميل قبل الحفظ.</td></tr>
+        <tr><td class="q">انقطاع الاتصال أثناء الحفظ</td><td class="q">فشل</td><td class="q">تعذّر الحفظ بسبب انقطاع الاتصال؛ مدخلاتك محفوظة، أعد المحاولة.</td></tr>
+        <tr><td class="q">تأكيد حذف</td><td class="q">تحذير</td><td class="q">الحذف نهائي ولا يمكن التراجع عنه. هل تريد المتابعة؟</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="q">4.3 تدفقات العمليات الرئيسية</h3>
+    <h4 class="q">4.3.1 تدفق تسجيل الدخول (FR-07)</h4>
+    <div class="flow"><b>1)</b> إدخال البريد وكلمة المرور ← <b>2)</b> التحقق من كلمة المرور (bcrypt) ← <b>3)</b> إرسال رمز OTP إلى البريد ← <b>4)</b> إدخال الرمز والتحقق منه ← <b>5)</b> إنشاء جلسة آمنة ← <b>6)</b> الوصول إلى لوحة التحكم.</div>
+    <h4 class="q">4.3.2 تدفق نشر/ظهور التغييرات (FR-10)</h4>
+    <div class="flow"><b>1)</b> حفظ النشاط في لوحة التحكم ← <b>2)</b> الكتابة إلى قاعدة البيانات (المصدر الوحيد) ← <b>3)</b> تحديث طبقة العرض ← <b>4)</b> ظهور التغيير على الموقع العام خلال 60 ثانية أو أقل.</div>
+    <h4 class="q">4.3.3 تدفق حذف دولة/منظمة مرتبطة بأنشطة (FR-16)</h4>
+    <div class="flow"><b>1)</b> طلب حذف دولة/منظمة ← <b>2)</b> فحص الارتباط بأنشطة ← <b>3)</b> إن وُجدت أنشطة: نافذة اختيار جهة لنقل الأنشطة إليها ← <b>4)</b> نقل الأنشطة ثم الحذف ضمن معاملة واحدة (Transaction) ← <b>5)</b> تأكيد العملية.</div>
   </section>
 
   <section>
-    <h2>4. المتطلبات غير الوظيفية</h2>
+    <h2>5. المتطلبات غير الوظيفية</h2>
     <table>
       <thead><tr><th>المجال</th><th>المتطلب</th></tr></thead>
       <tbody>
-        <tr><td>الأداء</td><td>Lighthouse للهاتف ≥ 85؛ LCP ≤ 2.5 ثانية؛ CLS ≤ 0.1.</td></tr>
-        <tr><td>الوصولية</td><td>WCAG 2.1 AA؛ Lighthouse Accessibility ≥ 95.</td></tr>
+        <tr><td>الأداء</td><td>Lighthouse للهاتف <span class="v">85 أو أعلى</span>؛ زمن أكبر عنصر مرئي (LCP) <span class="v">2.5 ثانية أو أقل</span>؛ إزاحة التخطيط التراكمية (CLS) <span class="v">0.1 أو أقل</span>.</td></tr>
+        <tr><td>الوصولية</td><td>WCAG 2.1 AA؛ Lighthouse Accessibility <span class="v">95 أو أعلى</span>.</td></tr>
         <tr><td>المتصفحات</td><td>أحدث إصدارات Chrome وEdge وFirefox وSafari (سطح المكتب والهاتف).</td></tr>
-        <tr><td>الأمان</td><td>HTTPS + HSTS، ملفات تعريف ارتباط آمنة، حماية CSRF، تنقية المدخلات، تحديد معدّل المحاولات.</td></tr>
+        <tr><td>الأمان</td><td>HTTPS + HSTS، ملفات تعريف ارتباط آمنة، حماية CSRF، تنقية المدخلات، تحديد معدّل المحاولات<span class="q">، مصادقة بكلمة مرور مُجزّأة (bcrypt) + تحقق بخطوتين (OTP)</span>.</td></tr>
+        <tr><td class="q">الجلسة</td><td class="q">مدة جلسة محددة قابلة للضبط؛ تنتهي تلقائياً بعد الخمول وتتطلب إعادة تسجيل الدخول.</td></tr>
         <tr><td>SEO / AEO</td><td>بيانات وصفية كاملة، بيانات منظَّمة، خريطة موقع، robots، llms.txt؛ مع استبعاد لوحة التحكم من الفهرسة.</td></tr>
-        <tr><td>الموثوقية</td><td>توافر الموقع العام ≥ 99.5% شهرياً.</td></tr>
-        <tr><td>النسخ الاحتياطي</td><td>نسخ احتياطي منتظم لبيانات الأنشطة قابل للاستعادة.</td></tr>
+        <tr><td>الموثوقية</td><td>توافر الموقع العام <span class="v">99.5% أو أعلى</span> شهرياً<span class="q">؛ وتوافر لوحة التحكم الإدارية <span class="v">99.0% أو أعلى</span> شهرياً (مستوى خدمة مستقل)</span>.</td></tr>
+        <tr><td class="q">النسخ الاحتياطي والاستعادة</td><td class="q">نسخ احتياطي يومي تلقائي لقاعدة البيانات بصيغة pg_dump مضغوطة، مع الاحتفاظ بآخر 30 نسخة، وإجراء استعادة موثّق (هدف نقطة الاستعادة RPO <span class="v">24 ساعة كحد أقصى</span>، هدف زمن الاستعادة RTO <span class="v">4 ساعات كحد أقصى</span>).</td></tr>
+        <tr><td class="q">مصدر البيانات والمزامنة</td><td class="q">قاعدة البيانات هي المصدر الوحيد لكل عمليات القراءة والكتابة (لا يوجد ملف وسيط)؛ يقرأ الموقع العام عبر طبقة خدمة موحّدة مع تخزين مؤقت قصير (~60 ثانية)؛ تُحفَظ الإحداثيات على مستوى الدولة/المنظمة كمصدر موثوق وتُشتقّ منها عند غياب إحداثيات خاصة للنشاط.</td></tr>
       </tbody>
     </table>
   </section>
 
   <section>
-    <h2>5. دليل المستخدم (User Manual)</h2>
-    <p>يوضِّح هذا الدليل كيفية استخدام كلٍّ من الموقع العام ولوحة التحكم الإدارية. الدليل موجَّه لجمهورين: الزوار العامين، وفريق المجمع المسؤول عن إدارة المحتوى.</p>
+    <h2 class="q">6. نموذج الأدوار والصلاحيات</h2>
+    <p class="q">تُدار صلاحيات لوحة التحكم عبر نظام أدوار: لكل دور مجموعة صلاحيات (قراءة/إنشاء/تعديل/حذف) لكل قسم، تُفرَض على الخادم والواجهة معاً. يوجد دور مسؤول افتراضي بصلاحيات كاملة. التعديل والحذف والنشر محكومة بصلاحيات الدور لا بهوية منشئ النشاط.</p>
+    <table>
+      <thead><tr><th>القسم</th><th class="center">مسؤول (Admin)</th><th class="center">محرّر (Editor)</th><th class="center">مشاهِد (Viewer)</th></tr></thead>
+      <tbody>
+        <tr><td class="q">الأنشطة</td><td class="center q">قراءة/إنشاء/تعديل/حذف</td><td class="center q">قراءة/إنشاء/تعديل</td><td class="center q">قراءة</td></tr>
+        <tr><td class="q">الدول</td><td class="center q">قراءة/إنشاء/تعديل/حذف</td><td class="center q">قراءة/تعديل</td><td class="center q">قراءة</td></tr>
+        <tr><td class="q">المنظمات</td><td class="center q">قراءة/إنشاء/تعديل/حذف</td><td class="center q">قراءة/تعديل</td><td class="center q">قراءة</td></tr>
+        <tr><td class="q">المستخدمون</td><td class="center q">قراءة/إنشاء/تعديل/حذف</td><td class="center q">—</td><td class="center q">—</td></tr>
+        <tr><td class="q">الأدوار</td><td class="center q">قراءة/إنشاء/تعديل/حذف</td><td class="center q">—</td><td class="center q">—</td></tr>
+      </tbody>
+    </table>
+    <p class="q">يُعيَّن دور واحد لكل مستخدم، ويُعرَض المستخدم بدون دور بشارة تنبيه في قائمة المستخدمين.</p>
+  </section>
 
-    <h3 style="font-size:16px; margin-top:18px;">5.1 الموقع العام (للزوار)</h3>
+  <section>
+    <h2>7. دليل المستخدم (User Manual)</h2>
+    <p>يوضِّح هذا الدليل كيفية استخدام كلٍّ من الموقع العام ولوحة التحكم الإدارية، وهو موجَّه للزوار العامين ولفريق المجمع المسؤول عن إدارة المحتوى.</p>
+
+    <h3>7.1 الموقع العام (للزوار)</h3>
     <table>
       <thead><tr><th>الإجراء</th><th>الخطوات</th></tr></thead>
       <tbody>
-        <tr><td>الدخول إلى الموقع</td><td>فتح رابط الموقع في المتصفح — تظهر شاشة ترحيبية ثم نقطة دخول إلى الكرة الأرضية.</td></tr>
-        <tr><td>استكشاف الكرة الأرضية</td><td>السحب لتدوير الكرة، استخدام عجلة الفأرة أو الإيماءات للتكبير والتصغير، الضغط على أي علامة لعرض تفاصيل النشاط.</td></tr>
-        <tr><td>عرض قائمة الأنشطة</td><td>فتح لوحة الأنشطة من جانب الشاشة لعرض جميع الأنشطة المنشورة في قائمة قابلة للتمرير.</td></tr>
-        <tr><td>التصفية</td><td>استخدام مرشّحات الدولة والنوع والسنة لتضييق نطاق الأنشطة المعروضة على الكرة وفي القائمة معاً.</td></tr>
-        <tr><td>الانتقال إلى نشاط</td><td>الضغط على نشاط في القائمة ينقل الكرة الأرضية تلقائياً إلى موقعه الجغرافي ويُبرز علامته.</td></tr>
-        <tr><td>تبديل اللغة</td><td>استخدام زر تبديل اللغة (AR/EN) أعلى الشاشة للتنقل بين العربية والإنجليزية.</td></tr>
-        <tr><td>العودة للوضع الافتراضي</td><td>الضغط على زر "إعادة" أو الشعار يُعيد الكرة إلى موضعها الأصلي ويلغي أي تصفية.</td></tr>
+        <tr><td>الدخول إلى الموقع</td><td>فتح رابط الموقع — تظهر شاشة ترحيبية ثم نقطة دخول إلى الكرة الأرضية.</td></tr>
+        <tr><td>استكشاف الكرة الأرضية</td><td>السحب للتدوير، عجلة الفأرة/الإيماءات للتكبير، الضغط على أي علامة لعرض تفاصيل النشاط.</td></tr>
+        <tr><td>عرض قائمة الأنشطة</td><td>فتح لوحة الأنشطة من جانب الشاشة لعرض جميع الأنشطة المنشورة.</td></tr>
+        <tr><td>التصفية</td><td><span class="q">استخدام فلاتر النوع والتصنيف الفرعي والموقع والسنة والبحث</span> لتضييق النطاق على الكرة والقائمة معاً.</td></tr>
+        <tr><td>الانتقال إلى نشاط</td><td>الضغط على نشاط في القائمة ينقل الكرة تلقائياً إلى موقعه ويُبرز علامته <span class="q">ويوقف الدوران</span>.</td></tr>
+        <tr><td>تبديل اللغة</td><td>استخدام زر (AR/EN) أعلى الشاشة للتنقل بين العربية والإنجليزية.</td></tr>
+        <tr><td>العودة للوضع الافتراضي</td><td>الضغط على «إعادة» أو الشعار يصفّر الفلاتر ويعيد الكرة للوضع الافتراضي <span class="q">ويستأنف الدوران</span>.</td></tr>
       </tbody>
     </table>
 
-    <h3 style="font-size:16px; margin-top:18px;">5.2 لوحة التحكم الإدارية (لفريق المجمع)</h3>
-    <p><b>الوصول:</b> لوحة التحكم متاحة على مسار <code>/admin</code> ومحمية بمصادقة. يلزم إدخال بيانات الحساب المعتمد للدخول.</p>
+    <h3>7.2 لوحة التحكم الإدارية (لفريق المجمع)</h3>
+    <p><b>الوصول:</b> لوحة التحكم متاحة على مسار <code>/admin</code> ومحمية بمصادقة <span class="q">وتحقق بخطوتين</span>.</p>
 
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">تسجيل الدخول</h4>
+    <h4>تسجيل الدخول والخروج</h4>
     <ul>
-      <li>فتح رابط لوحة التحكم وإدخال البريد الإلكتروني وكلمة المرور.</li>
-      <li>تسجيل الخروج يتم من القائمة العلوية لحماية الجلسة عند مشاركة الجهاز.</li>
+      <li>إدخال البريد وكلمة المرور <span class="q">ثم رمز التحقق (OTP) المُرسَل للبريد</span>.</li>
+      <li><span class="q">تسجيل الخروج من القائمة العلوية يُنهي الجلسة ويمسح كوكي الجلسة</span> — خاصة على الأجهزة المشتركة.</li>
+      <li class="q">عند نسيان كلمة المرور، استخدام رابط الاستعادة (رمز صالح 30 دقيقة).</li>
     </ul>
 
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">إدارة الأنشطة</h4>
+    <h4>إدارة الأنشطة</h4>
     <table>
       <thead><tr><th>المهمة</th><th>الخطوات</th></tr></thead>
       <tbody>
-        <tr><td>عرض قائمة الأنشطة</td><td>من القائمة الجانبية ← "الأنشطة" — تظهر جميع الأنشطة مع إمكانية البحث والتصفية.</td></tr>
-        <tr><td>إضافة نشاط جديد</td><td>الضغط على "+ إضافة نشاط" ← تعبئة النموذج (العنوان، النوع، الدولة، الإحداثيات، التاريخ، الوصف، الصور) ← الحفظ — يظهر النشاط فوراً على الموقع العام.</td></tr>
-        <tr><td>تعديل نشاط</td><td>الضغط على النشاط في القائمة ← تعديل الحقول ← حفظ التغييرات — تنعكس التغييرات مباشرة على الموقع العام.</td></tr>
-        <tr><td>حذف نشاط</td><td>فتح النشاط ← "حذف" ← تأكيد الحذف. الحذف نهائي ودائم — تُحذَف بيانات النشاط من قاعدة البيانات ولا يمكن استرجاعها.</td></tr>
+        <tr><td>إضافة نشاط</td><td>«+ إضافة نشاط» ← تعبئة النموذج (<span class="q">العنوان عربي/إنجليزي، النوع، الدولة، المنظمة، خط العرض/الطول، تاريخ البداية/النهاية</span>، الوصف، الصور) ← الحفظ — <span class="q">يظهر خلال 60 ثانية</span>.</td></tr>
+        <tr><td>تعديل نشاط</td><td>فتح النشاط ← تعديل الحقول ← حفظ — <span class="q">تنعكس التغييرات خلال 60 ثانية</span>.</td></tr>
+        <tr><td>حذف نشاط</td><td>فتح النشاط ← «حذف» ← تأكيد. الحذف نهائي ودائم.</td></tr>
       </tbody>
     </table>
 
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">إدارة الدول والمنظمات</h4>
+    <h4>إدارة الدول والمنظمات</h4>
     <ul>
-      <li><b>الدول:</b> القائمة الجانبية ← "الدول" — لإضافة أو تعديل أو حذف الدول التي تُربط بها الأنشطة.</li>
-      <li><b>المنظمات:</b> القائمة الجانبية ← "المنظمات" — لإدارة الجهات الشريكة المرتبطة بالأنشطة.</li>
-      <li>عند حذف دولة أو منظمة مرتبطة بأنشطة، يُطلَب من المستخدم نقل الأنشطة أولاً.</li>
+      <li><b>الدول:</b> القائمة الجانبية ← «الدول» — إضافة/تعديل/حذف الدول.</li>
+      <li><b>المنظمات:</b> القائمة الجانبية ← «المنظمات» — إدارة الجهات الشريكة.</li>
+      <li><span class="q">عند حذف دولة/منظمة مرتبطة بأنشطة، يُطلَب نقل الأنشطة أولاً (التدفق 4.3.3).</span></li>
     </ul>
 
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">حقول النشاط</h4>
-    <table>
-      <thead><tr><th>الحقل</th><th>الوصف</th><th>إلزامي؟</th></tr></thead>
-      <tbody>
-        <tr><td>العنوان</td><td>اسم النشاط بالعربية والإنجليزية.</td><td>نعم</td></tr>
-        <tr><td>النوع</td><td>تصنيف النشاط (مؤتمر، ورشة، شراكة، إلخ).</td><td>نعم</td></tr>
-        <tr><td>الدولة</td><td>الدولة المرتبطة بالنشاط.</td><td>نعم</td></tr>
-        <tr><td>الإحداثيات</td><td>خط الطول والعرض لتحديد موقع العلامة على الكرة الأرضية.</td><td>نعم</td></tr>
-        <tr><td>التاريخ</td><td>تاريخ بداية النشاط (وتاريخ نهايته إن وُجد).</td><td>نعم</td></tr>
-        <tr><td>الوصف</td><td>نص يعرض في بطاقة تفاصيل النشاط.</td><td>نعم</td></tr>
-        <tr><td>الصور</td><td>صور توضيحية للنشاط (اختياري، حد أقصى 5 صور).</td><td>لا</td></tr>
-      </tbody>
-    </table>
-
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">سير عمل النشر</h4>
+    <h4>إرشادات وأفضل الممارسات</h4>
     <ul>
-      <li>أي نشاط يُضاف يظهر فوراً على الموقع العام عند حفظه — لا توجد مرحلة مسوّدة.</li>
-      <li>تعديل أي نشاط ينعكس مباشرة على الموقع العام بعد الحفظ.</li>
-      <li>للتأكد من المحتوى قبل ظهوره للجمهور، يُنصح بإعداد النشاط أولاً على بيئة التجربة (Staging) ثم تكراره على الإنتاج بعد الاعتماد.</li>
-      <li>الحذف نهائي ودائم — لا يوجد سلة محذوفات، لذا يجب التأكد قبل تأكيد الحذف.</li>
+      <li>تأكَّد من دقَّة الإحداثيات — استخدم خرائط Google لاستخراج خط الطول والعرض.</li>
+      <li>اكتب وصفاً واضحاً (50–150 كلمة) واستخدم صوراً بنسبة 16:9.</li>
+      <li>سجِّل الخروج بعد الانتهاء، خاصة على الأجهزة المشتركة.</li>
     </ul>
 
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">إرشادات وأفضل الممارسات</h4>
+    <h4>الدعم وحل المشكلات</h4>
     <ul>
-      <li>تأكَّد من دقَّة الإحداثيات الجغرافية قبل النشر — استخدم خرائط Google لاستخراج خط الطول والعرض الصحيحين.</li>
-      <li>اكتب وصفاً موجزاً وواضحاً (50–150 كلمة) ليظهر بشكل جيد في بطاقة التفاصيل.</li>
-      <li>استخدم صوراً عالية الجودة بأبعاد 16:9 لضمان عرض متناسق.</li>
-      <li>راجع النشاط على بيئة التجربة (Staging) قبل اعتماده للإنتاج.</li>
-      <li>سجِّل الخروج من لوحة التحكم بعد الانتهاء، خاصة على الأجهزة المشتركة.</li>
-    </ul>
-
-    <h4 style="font-size:14.5px; margin-top:14px; margin-bottom:6px;">الدعم وحل المشكلات</h4>
-    <ul>
-      <li><b>لا أستطيع تسجيل الدخول:</b> تحقَّق من البريد وكلمة المرور، ثم استخدم رابط استعادة كلمة المرور.</li>
-      <li><b>النشاط لا يظهر على الموقع:</b> تأكَّد من حفظ النشاط بنجاح وصحة الإحداثيات الجغرافية، ثم أعِد تحميل الصفحة العامة.</li>
-      <li><b>العلامة تظهر في موقع خاطئ:</b> راجع حقلَي خط الطول والعرض وتأكَّد من ترتيبهما الصحيح.</li>
-      <li><b>الصور لا تُحمَّل:</b> تحقَّق من حجم الصورة (أقل من 5 ميجابايت) وصيغتها (JPG أو PNG أو WebP).</li>
+      <li><b>لا أستطيع تسجيل الدخول:</b> تحقَّق من البيانات ثم استخدم رابط استعادة كلمة المرور.</li>
+      <li><b>النشاط لا يظهر:</b> تأكَّد من الحفظ وصحة الإحداثيات ثم أعِد تحميل الصفحة.</li>
+      <li><b>العلامة في موقع خاطئ:</b> راجع حقلَي خط الطول والعرض وترتيبهما.</li>
+      <li><b>الصور لا تُحمَّل:</b> تحقَّق من الحجم (أقل من 5MB) والصيغة (JPG/PNG/WebP).</li>
     </ul>
   </section>
 
-  <footer>BRD v1 &middot; 4 مايو 2026</footer>
+  <footer>BRD v2 &middot; يونيو 2026</footer>
 </div>
 </body>
 </html>
