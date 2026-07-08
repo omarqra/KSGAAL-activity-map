@@ -123,9 +123,9 @@
 
   <section>
     <h2>4. الاستضافة والأمان والإتاحة العالية (High Availability)</h2>
-    <p>صُمِّمت بنية الإنتاج لتكون عالية الإتاحة (HA) مبنيةً على Kubernetes (Azure AKS)، بحيث لا يتسبب تعطُّل أي مكوِّن منفرد في توقُّف الموقع:</p>
+    <p>صُمِّمت بنية الإنتاج لتكون عالية الإتاحة (HA) مبنيةً على Kubernetes (Oracle OKE)، بحيث لا يتسبب تعطُّل أي مكوِّن منفرد في توقُّف الموقع:</p>
     <ul>
-      <li>يعمل التطبيق داخل حاويات Docker تُدار بواسطة <b>Kubernetes (Azure AKS)</b>.</li>
+      <li>يعمل التطبيق داخل حاويات Docker تُدار بواسطة <b>Kubernetes (Oracle OKE)</b>.</li>
       <li><b>NGINX Ingress Controller:</b> نقطة الدخول الوحيدة المكشوفة للإنترنت داخل الـ cluster؛ يستقبل حركة HTTPS ويوزِّعها على pods التطبيق ويُجري فحوصات صحة دورية لاستبعاد أي pod متعطِّل تلقائياً.</li>
       <li><b>تعدُّد نسخ التطبيق (Replicas):</b> نسختان على الأقل من pods التطبيق تعملان في وضع Active-Active داخل K8s Deployment مع استراتيجية RollingUpdate — لا يُزال أي pod قديم إلا بعد أن يصبح الجديد جاهزاً.</li>
       <li><b>فحوصات الصحة (Health Probes):</b> كل pod يكشف مسارَين للـ K8s:
@@ -134,7 +134,7 @@
           <li><code>/api/health/ready</code> — Readiness Probe: يتحقق من اتصال قاعدة البيانات؛ يُوقف K8s توجيه الطلبات إلى الـ pod حتى ينجح.</li>
         </ul>
       </li>
-      <li><b>قاعدة البيانات:</b> Azure Database for PostgreSQL Flexible Server كخدمة مُدارة خارج الـ cluster — تشمل نسخاً احتياطية يومية مدمجة وتحويلاً تلقائياً (Automatic Failover) عند التعطُّل.</li>
+      <li><b>قاعدة البيانات:</b> OCI Database with PostgreSQL كخدمة مُدارة خارج الـ cluster — تشمل نسخاً احتياطية يومية مدمجة وتحويلاً تلقائياً (Automatic Failover) عند التعطُّل.</li>
       <li><b>نسخ احتياطي يومي (Backups):</b> تُدار بالكامل من Azure — نسخ احتياطية مشفَّرة تُحفَظ 30 يوماً على الأقل.</li>
       <li><b>عزل البيئات:</b> لكل بيئة (staging/production) namespace Kubernetes مستقل مع secrets وconfigmap خاصَّين بها.</li>
       <li><b>مراقبة (Monitoring):</b> مراقبة مستمرة لزمن الاستجابة، استهلاك الموارد، وحالة الـ pods مع تنبيهات فورية.</li>
@@ -151,9 +151,9 @@
     <table>
       <thead><tr><th>الخدمة</th><th>الغرض</th><th>المواصفات المقترحة</th></tr></thead>
       <tbody>
-        <tr><td>Azure Kubernetes Service (AKS)</td><td>تشغيل وإدارة حاويات التطبيق</td><td>Cluster واحد — node pool للإنتاج: نوع <code>Standard_D2s_v3</code> (2 vCPU / 8 GB) × 2 عقدة على الأقل؛ node pool للـ staging: عقدة واحدة من نفس النوع</td></tr>
-        <tr><td>Azure Container Registry (ACR)</td><td>تخزين صور Docker المبنية</td><td>Basic tier (يمكن ترقيته لـ Standard عند زيادة الحجم)</td></tr>
-        <tr><td>Azure Database for PostgreSQL — Flexible Server</td><td>قاعدة البيانات المُدارة خارج الـ cluster</td><td>Burstable B2s للـ staging؛ General Purpose D2ds_v4 للإنتاج — مع تفعيل High Availability و Auto-backup</td></tr>
+        <tr><td>Oracle Container Engine for Kubernetes (OKE)</td><td>تشغيل وإدارة حاويات التطبيق</td><td>Cluster واحد — node pool للإنتاج: نوع <code>Standard_D2s_v3</code> (2 vCPU / 8 GB) × 2 عقدة على الأقل؛ node pool للـ staging: عقدة واحدة من نفس النوع</td></tr>
+        <tr><td>Oracle Cloud Infrastructure Registry (OCIR)</td><td>تخزين صور Docker المبنية</td><td>Basic tier (يمكن ترقيته لـ Standard عند زيادة الحجم)</td></tr>
+        <tr><td>OCI Database with PostgreSQL</td><td>قاعدة البيانات المُدارة خارج الـ cluster</td><td>Burstable B2s للـ staging؛ General Purpose D2ds_v4 للإنتاج — مع تفعيل High Availability و Auto-backup</td></tr>
         <tr><td>Azure DevOps</td><td>CI/CD Pipelines لبناء الصور ونشرها تلقائياً</td><td>مستودع Git + Pipelines + Variable Groups للأسرار</td></tr>
       </tbody>
     </table>
@@ -166,7 +166,7 @@
         <tr><td>بيئة الإنتاج</td><td class="path">ksgaal-production</td><td>تشغيل نسخة الإنتاج بإعدادات وأسرار مستقلة</td></tr>
       </tbody>
     </table>
-    <div class="note">لا توجد خوادم VPS مستقلة — كل الحسابات تعمل داخل AKS على nodes يُديرها Azure تلقائياً. قاعدة البيانات PostgreSQL خارج الـ cluster تماماً كخدمة مُدارة.</div>
+    <div class="note">لا توجد خوادم VPS مستقلة — كل الحسابات تعمل داخل OKE على nodes يُديرها Azure تلقائياً. قاعدة البيانات PostgreSQL خارج الـ cluster تماماً كخدمة مُدارة.</div>
   </section>
 
   <section>
@@ -197,8 +197,8 @@
         <tr><td>80</td><td>HTTP</td><td>وارد — NGINX Ingress فقط</td><td>إعادة التوجيه التلقائي إلى HTTPS</td></tr>
         <tr><td>443</td><td>HTTPS</td><td>وارد — NGINX Ingress فقط</td><td>حركة المرور العامة؛ TLS يُنهى عند الـ Ingress</td></tr>
         <tr><td>3000</td><td>HTTP</td><td>داخلي — داخل الـ cluster فقط</td><td>منفذ التطبيق (Next.js) — لا يُكشف خارجياً</td></tr>
-        <tr><td>5432</td><td>TCP</td><td>صادر من الـ cluster إلى Azure PostgreSQL</td><td>اتصال التطبيق بقاعدة البيانات الخارجية المُدارة</td></tr>
-        <tr><td>كل المنافذ</td><td>—</td><td>صادر</td><td>سحب صور Docker من ACR، تحديثات الحزم، اتصالات SSL</td></tr>
+        <tr><td>5432</td><td>TCP</td><td>صادر من الـ cluster إلى OCI Database with PostgreSQL</td><td>اتصال التطبيق بقاعدة البيانات الخارجية المُدارة</td></tr>
+        <tr><td>كل المنافذ</td><td>—</td><td>صادر</td><td>سحب صور Docker من OCIR، تحديثات الحزم، اتصالات SSL</td></tr>
       </tbody>
     </table>
   </section>
@@ -213,7 +213,7 @@
       <li>ملفات شهادة SSL لكلا النطاقَين (ملف الشهادة، المفتاح الخاص، وسلسلة CA) — سيستلمها الفريق التقني ويثبِّتها كـ Kubernetes Secret على الـ Ingress Controller.</li>
       <li>إعدادات SMTP (مضيف، منفذ، بيانات المصادقة) لإرسال رسائل OTP وإعادة تعيين كلمة المرور.</li>
     </ul>
-    <div class="note">لا يلزم الوصول المباشر إلى خوادم VPS — إدارة AKS تتم من Azure Portal أو Azure CLI أو عبر Azure DevOps Pipelines.</div>
+    <div class="note">لا يلزم الوصول المباشر إلى خوادم VPS — إدارة OKE تتم من Azure Portal أو Azure CLI أو عبر Azure DevOps Pipelines.</div>
   </section>
 
   <section>
@@ -258,7 +258,7 @@
       <thead><tr><th>#</th><th>الخطوة</th><th>التفاصيل</th></tr></thead>
       <tbody>
         <tr><td>1</td><td>بناء صورة Docker</td><td>يُشغَّل <code>docker build</code> مع تمرير <code>NEXT_PUBLIC_*</code> كـ build-args مأخوذة من Variable Group البيئة — تُنتج صورة مستقلة لكل بيئة</td></tr>
-        <tr><td>2</td><td>رفع الصورة إلى ACR</td><td><code>docker push</code> إلى Azure Container Registry بوسم يتضمن رقم البناء</td></tr>
+        <tr><td>2</td><td>رفع الصورة إلى OCIR</td><td><code>docker push</code> إلى Oracle Cloud Infrastructure Registry بوسم يتضمن رقم البناء</td></tr>
         <tr><td>3</td><td>إنشاء Kubernetes Secret</td><td>يُنشأ أو يُحدَّث secret يحتوي DATABASE_URL، JWT_SECRET، SMTP، بيانات الأدمن — القيم تأتي من ADO Secret Variables ولا تُسجَّل في أي ملف</td></tr>
         <tr><td>4</td><td>تطبيق الـ overlay</td><td><code>kubectl apply -k overlays/staging/</code> أو <code>overlays/production/</code> — يُنشئ namespace ويُطبِّق ConfigMap وService وIngress</td></tr>
         <tr><td>5</td><td>تشغيل ترحيل قاعدة البيانات</td><td>يُحذف Job القديم ثم يُطبَّق <code>migration-job.yaml</code> الذي يُشغِّل <code>prisma migrate deploy</code> — Pipeline يتوقف هنا في حال الفشل ولا ينتقل للنشر</td></tr>
@@ -297,7 +297,7 @@
         <tr><td>Language</td><td>TypeScript</td><td>5.x</td></tr>
         <tr><td>Styling</td><td>Tailwind CSS</td><td>4.x</td></tr>
         <tr><td>ORM</td><td>Prisma</td><td>6.19.3</td></tr>
-        <tr><td>قاعدة البيانات</td><td>PostgreSQL (Azure Flexible Server)</td><td>16+</td></tr>
+        <tr><td>قاعدة البيانات</td><td>PostgreSQL (OCI Database with PostgreSQL)</td><td>16+</td></tr>
         <tr><td>Validation</td><td>Zod</td><td>4.1.12</td></tr>
         <tr><td>Animation</td><td>Framer Motion</td><td>12.x</td></tr>
         <tr><td>3D Rendering</td><td>Three.js</td><td>0.184.0</td></tr>
@@ -312,10 +312,10 @@
       <thead><tr><th>الطبقة</th><th>التقنية</th><th>الدور</th></tr></thead>
       <tbody>
         <tr><td>Container Runtime</td><td>Docker (Multi-Stage Build)</td><td>بناء صورة خفيفة بـ 4 مراحل — الصورة النهائية تعمل بـ <code>node server.js</code> فقط</td></tr>
-        <tr><td>Container Orchestration</td><td>Kubernetes (Azure AKS)</td><td>إدارة الـ pods، Rolling Updates، Health Probes، namespace isolation</td></tr>
+        <tr><td>Container Orchestration</td><td>Kubernetes (Oracle OKE)</td><td>إدارة الـ pods، Rolling Updates، Health Probes، namespace isolation</td></tr>
         <tr><td>Ingress Controller</td><td>NGINX Ingress Controller</td><td>نقطة الدخول الوحيدة — TLS termination + routing</td></tr>
         <tr><td>Manifest Management</td><td>Kustomize (Overlays)</td><td>base مشترك + overlays مستقلة للـ staging والإنتاج</td></tr>
-        <tr><td>Container Registry</td><td>Azure Container Registry (ACR)</td><td>تخزين صور Docker المبنية</td></tr>
+        <tr><td>Container Registry</td><td>Oracle Cloud Infrastructure Registry (OCIR)</td><td>تخزين صور Docker المبنية</td></tr>
         <tr><td>CI/CD</td><td>Azure DevOps Pipelines</td><td>بناء ورفع ونشر تلقائي عند كل push</td></tr>
         <tr><td>Secrets Management</td><td>ADO Variable Groups + K8s Secrets</td><td>الأسرار محفوظة في ADO ومُمرَّرة عند النشر إلى K8s Secret — لا تُخزَّن في الكود</td></tr>
         <tr><td>Database Migration</td><td>Kubernetes Job (prisma migrate deploy)</td><td>يُشغَّل قبل كل نشر — الـ pipeline يتوقف إذا فشل</td></tr>
@@ -347,7 +347,7 @@
     </div>
 
     <h3 style="font-size:16px; margin-top:32px;">د. خط أنابيب النشر التلقائي (Azure DevOps CI/CD Pipeline)</h3>
-    <p style="color:var(--muted); font-size:13px; margin: 4px 0 12px;">يُبيِّن المخطط الرحلة الكاملة من لحظة دفع الكود حتى وصوله إلى الـ cluster: التحقق من الكود ← بناء صورة Docker ← رفعها إلى ACR ← نشرها على K8s ← تشغيل Migration Job ← Rolling Update.</p>
+    <p style="color:var(--muted); font-size:13px; margin: 4px 0 12px;">يُبيِّن المخطط الرحلة الكاملة من لحظة دفع الكود حتى وصوله إلى الـ cluster: التحقق من الكود ← بناء صورة Docker ← رفعها إلى OCIR ← نشرها على K8s ← تشغيل Migration Job ← Rolling Update.</p>
     <div style="overflow-x:auto; border:1px solid var(--line); border-radius:6px; padding:12px; background:var(--panel);">
       <img src="./diagram-cicd-pipeline.png" alt="Azure DevOps CI/CD Pipeline" style="max-width:100%; height:auto; display:block;" />
     </div>
