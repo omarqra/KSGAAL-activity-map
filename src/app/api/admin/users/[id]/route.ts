@@ -10,13 +10,17 @@ import {
   isPasswordReused,
   recordPasswordHistory,
 } from "@/lib/auth/password-policy";
-import { requireApiRole, requireApiUser } from "@/lib/auth/require-api-user";
+import {
+  requireApiPermission,
+  requireApiUser,
+} from "@/lib/auth/require-api-user";
 import { sendEmail } from "@/lib/email/send";
 import { passwordChangedEmail } from "@/lib/email/templates/password-changed";
 import { prisma } from "@/lib/prisma";
 
 import { fail, handleError, notFound, ok, parseId } from "../../../_lib/http";
 import { userUpdate } from "../../../_lib/validators";
+import { resolveRole } from "../route";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,6 +29,7 @@ const USER_SELECT = {
   email: true,
   name: true,
   role: true,
+  roleId: true,
   isActive: true,
   lastLoginAt: true,
   passwordChangedAt: true,
@@ -54,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const rate = checkApiRateLimit(req, { bucket: "admin:users:write", max: 30 });
     if (!rate.allowed) return rateLimitResponse(rate.retryAfterSec);
 
-    const auth = await requireApiRole(["admin"]);
+    const auth = await requireApiPermission("users", "update");
     if (!auth.ok) return auth.response;
     const id = parseId((await params).id);
     if (!id) return fail("Invalid id", 400);
@@ -69,7 +74,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const data: Record<string, unknown> = {};
     if (body.email !== undefined) data.email = body.email;
     if (body.name !== undefined) data.name = body.name ?? null;
-    if (body.role !== undefined) data.role = body.role;
+    if (body.role !== undefined || body.roleId !== undefined) {
+      const resolved = await resolveRole(body.role, body.roleId);
+      data.role = resolved.role;
+      data.roleId = resolved.roleId;
+    }
     if (body.isActive !== undefined) data.isActive = body.isActive;
     let newPasswordHash: string | undefined;
     if (body.password !== undefined) {
@@ -115,7 +124,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const rate = checkApiRateLimit(req, { bucket: "admin:users:write", max: 30 });
     if (!rate.allowed) return rateLimitResponse(rate.retryAfterSec);
 
-    const auth = await requireApiRole(["admin"]);
+    const auth = await requireApiPermission("users", "delete");
     if (!auth.ok) return auth.response;
     const id = parseId((await params).id);
     if (!id) return fail("Invalid id", 400);

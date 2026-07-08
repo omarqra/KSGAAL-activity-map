@@ -195,6 +195,7 @@ export function OrganizationsTable({ items, total }: OrganizationsTableProps) {
       <ResourceTable<Organization, OrganizationRow>
         urlState={state}
         setParams={setParams}
+        resource="organizations"
         title={
           <>
             {t("tableTitle")}{" "}
@@ -231,6 +232,29 @@ export function OrganizationsTable({ items, total }: OrganizationsTableProps) {
           endpoint: (org) => `/api/admin/organizations/${org.id}`,
           confirmText: t("deleteConfirm"),
           cancelText: t("formActionCancel"),
+          transfer: {
+            fetchTargets: async (org) => {
+              const res = await fetch(
+                "/api/admin/organizations?pageSize=300",
+                { cache: "no-store" },
+              );
+              const json = await res.json();
+              const items: Array<{ id: number; nameAr: string }> =
+                json?.data?.items ?? [];
+              return items
+                .filter((x) => x.id !== org.id)
+                .map((x) => ({ id: x.id, label: x.nameAr }));
+            },
+            title: t("transferTitle"),
+            message: (org, count) =>
+              t("transferMessage", { name: org.nameAr, count }),
+            selectLabel: t("transferSelectLabel"),
+            selectPlaceholder: t("transferSelectPlaceholder"),
+            confirmText: t("transferConfirm"),
+            cancelText: t("formActionCancel"),
+            successText: () => t("transferSuccess"),
+            errorText: t("transferError"),
+          },
         }}
         deleteLabel={t("rowActionDelete")}
       />

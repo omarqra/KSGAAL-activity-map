@@ -16,10 +16,16 @@ interface ApiEnvelope<T> {
   error: { message: string; code?: string; details?: unknown } | null;
 }
 
+interface RoleOption {
+  id: number;
+  nameAr: string;
+}
+
 interface FormState {
   name: string;
   email: string;
   password: string;
+  roleId: string;
   isActive: boolean;
 }
 
@@ -27,6 +33,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   email: "",
   password: "",
+  roleId: "",
   isActive: true,
 };
 
@@ -35,6 +42,7 @@ function userToForm(user: AdminUser): FormState {
     name: user.name ?? "",
     email: user.email,
     password: "",
+    roleId: user.roleId != null ? String(user.roleId) : "",
     isActive: user.isActive,
   };
 }
@@ -51,6 +59,7 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
   const isEdit = !!initial;
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -62,6 +71,31 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
     setForm(initial ? userToForm(initial) : EMPTY_FORM);
     setSubmitError(null);
     setFieldErrors({});
+  }, [open, initial]);
+
+  // Load the assignable roles so the select reflects custom roles too.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/admin/roles", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((json: { data?: { items?: RoleOption[] } }) => {
+        if (cancelled) return;
+        const items = json.data?.items ?? [];
+        setRoles(items);
+        // Default a new user to the first role (the system Admin) once loaded.
+        setForm((prev) =>
+          !initial && !prev.roleId && items[0]
+            ? { ...prev, roleId: String(items[0].id) }
+            : prev,
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setRoles([]);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, initial]);
 
   const handleOpenChange = useCallback(
@@ -111,6 +145,7 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
       const pwdError = validatePasswordStrength(form.password);
       if (pwdError) errors.password = pwdError;
     }
+    if (!form.roleId) errors.roleId = t("formErrorRole");
     return { ok: Object.keys(errors).length === 0, errors };
   };
 
@@ -146,9 +181,9 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
     const payload: Record<string, unknown> = {
       email: form.email.trim(),
       name: trimmedName ? trimmedName : null,
+      roleId: form.roleId ? Number(form.roleId) : null,
       isActive: form.isActive,
     };
-    if (!isEdit) payload.role = "admin";
     if (form.password.length > 0) payload.password = form.password;
 
     setSubmitting(true);
@@ -273,6 +308,28 @@ export function UserFormSheet({ open, onOpenChange, initial }: Props) {
                   isEdit ? t("formFieldPasswordPlaceholderEdit") : undefined
                 }
               />
+            </Field>
+
+            <Field
+              label={t("formFieldRole")}
+              required
+              hint={t("formFieldRoleHint")}
+              error={fieldErrors.roleId}
+            >
+              <select
+                value={form.roleId}
+                onChange={(e) => update("roleId", e.target.value)}
+                className={inputCls(!!fieldErrors.roleId)}
+                dir="rtl"
+                disabled={roles.length === 0}
+              >
+                <option value="">{t("formFieldRolePlaceholder")}</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.nameAr}
+                  </option>
+                ))}
+              </select>
             </Field>
 
             <Field label={t("formFieldStatus")}>

@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/components/permissions/permissions-provider";
 
 import type { Organization } from "../_lib/api";
 import { OrganizationFormSheet } from "./organization-form-sheet";
@@ -72,6 +73,7 @@ function downloadFile(filename: string, content: string, mime: string) {
 
 export function OrganizationsActions() {
   const t = useTranslations("OrganizationsPage");
+  const canCreate = usePermission("organizations", "create");
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
@@ -122,6 +124,7 @@ export function OrganizationsActions() {
       >
         {exporting ? t("actionExporting") : t("actionExport")}
       </Button>
+      {canCreate && (
       <Button
         type="button"
         variant="primary"
@@ -130,6 +133,7 @@ export function OrganizationsActions() {
       >
         {t("actionCreate")}
       </Button>
+      )}
 
       <OrganizationFormSheet
         open={createOpen}

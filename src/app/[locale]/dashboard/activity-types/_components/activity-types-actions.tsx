@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/components/permissions/permissions-provider";
 
 import { useResourceUrlState } from "../../_components/shared";
 import type { ActivitySubtype, ActivityType } from "../_lib/api";
@@ -121,6 +122,7 @@ interface Props {
 
 export function ActivityTypesActions({ mainTypes }: Props) {
   const t = useTranslations("ActivityTypesPage");
+  const canCreate = usePermission("activityTypes", "create");
   const router = useRouter();
   const { state } = useResourceUrlState<ActivityTypesUrlState>({
     defaults: URL_DEFAULTS,
@@ -201,6 +203,7 @@ export function ActivityTypesActions({ mainTypes }: Props) {
       >
         {exporting ? t("actionExporting") : t("actionExport")}
       </Button>
+      {canCreate && (
       <Button
         type="button"
         variant="primary"
@@ -209,6 +212,7 @@ export function ActivityTypesActions({ mainTypes }: Props) {
       >
         {isSub ? t("actionCreateSub") : t("actionCreateMain")}
       </Button>
+      )}
 
       <ActivityTypeFormSheet
         open={createMainOpen}

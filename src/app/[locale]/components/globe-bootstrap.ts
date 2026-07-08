@@ -944,6 +944,8 @@ export function bootstrapGlobeScene(
     type: string;
     subtype: string | null;
     date: string;
+    description?: string | null;
+    images?: string[];
     lat: number;
     lng: number;
     entityCode: string;
@@ -1004,6 +1006,8 @@ export function bootstrapGlobeScene(
             type: a.type,
             subtype: a.subtype,
             date: a.date,
+            description: a.description,
+            images: a.images,
             lat: point.lat,
             lng: point.lng,
             entityCode: e.code,
@@ -1014,6 +1018,35 @@ export function bootstrapGlobeScene(
       }
       (data.countries || []).forEach((c) => _indexEntity(c, "country"));
       (data.organizations || []).forEach((o) => _indexEntity(o, "org"));
+
+      /* De-overlap pins that share (near-)identical coordinates. The per-entity
+         offset above only runs for activities WITHOUT custom coordinates, so two
+         activities entered with the same lat/lng would otherwise stack exactly
+         on top of each other. Group by a ~110 m grid and spread any collision
+         with the same golden-angle spiral (≈3 km radius) so every pin stays
+         clickable at its real location. */
+      {
+        const byPoint = new Map<string, IndexedActivity[]>();
+        for (const act of allActivities) {
+          if (typeof act.lat !== "number" || typeof act.lng !== "number") continue;
+          const key = `${act.lat.toFixed(3)},${act.lng.toFixed(3)}`;
+          const arr = byPoint.get(key);
+          if (arr) arr.push(act);
+          else byPoint.set(key, [act]);
+        }
+        for (const arr of byPoint.values()) {
+          if (arr.length < 2) continue;
+          const cLat = arr[0].lat as number;
+          const cLng = arr[0].lng as number;
+          arr.forEach((act, i) => {
+            const r = (3 / 111) * Math.sqrt((i + 0.5) / arr.length);
+            const ang = i * GOLDEN;
+            act.lat = cLat + r * Math.cos(ang);
+            act.lng = cLng + r * Math.sin(ang);
+          });
+        }
+      }
+
       (data as any)._activities = allActivities;
 
       let activeEl: HTMLElement | null = null;
@@ -1131,12 +1164,85 @@ export function bootstrapGlobeScene(
       pinTip.setAttribute("aria-hidden", "true");
       document.body.appendChild(pinTip);
 
+      /* Full-screen lightbox for enlarging an activity image. */
+      const lightbox = document.createElement("div");
+      lightbox.className = "globe-lightbox";
+      lightbox.innerHTML = `<img alt="" />`;
+      document.body.appendChild(lightbox);
+      const lightboxImg = lightbox.querySelector("img");
+      const closeLightbox = () => lightbox.classList.remove("show");
+      lightbox.addEventListener("click", closeLightbox);
+      window.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closeLightbox();
+      });
+
+      /* Keep the hover card reachable: when the cursor leaves a pin we hide the
+         card after a short delay, cancelled if the cursor moves onto the card
+         itself — so the user can hover/click the images inside it. */
+      let tipHideTimer = 0;
+      // When pinned (via a pin click) the card stays open until closed, so the
+      // user can freely move onto it to hover/click the images.
+      let tipPinned = false;
+      const cancelTipHide = () => {
+        if (tipHideTimer) {
+          clearTimeout(tipHideTimer);
+          tipHideTimer = 0;
+        }
+      };
+      const hideTip = () => {
+        tipPinned = false;
+        pinTip.classList.remove("show", "pinned");
+      };
+      const scheduleTipHide = () => {
+        cancelTipHide();
+        tipHideTimer = window.setTimeout(() => {
+          if (!tipPinned) pinTip.classList.remove("show");
+        }, 220);
+      };
+      pinTip.addEventListener("mouseenter", cancelTipHide);
+      pinTip.addEventListener("mouseleave", () => {
+        if (!tipPinned) pinTip.classList.remove("show");
+      });
+      pinTip.addEventListener("click", (ev) => {
+        const target = ev.target as HTMLElement;
+        if (target?.closest(".pt-close")) {
+          ev.stopPropagation();
+          hideTip();
+          return;
+        }
+        if (target?.tagName === "IMG" && target.closest(".pt-imgs")) {
+          ev.stopPropagation();
+          if (lightboxImg) {
+            lightboxImg.setAttribute("src", target.getAttribute("src") || "");
+          }
+          lightbox.classList.add("show");
+        }
+      });
+      // Click anywhere outside a pinned card (and not on a pin) closes it.
+      document.addEventListener("click", (ev) => {
+        if (!tipPinned) return;
+        const t = ev.target as HTMLElement;
+        if (!pinTip.contains(t) && !t.closest(".pin-marker-wrap")) hideTip();
+      });
+
       function buildTipHTML(act: IndexedActivity) {
         const color = pinTypeColor(act.type);
         const typeLab = pinTypeLabel(act.type);
         const dateTxt = act.date || t("noDate");
         const subtypeRow = act.subtype
           ? `<div class="pt-row"><span class="pt-label">${t("subtype")}</span><span class="pt-val">${escTip(act.subtype)}</span></div>`
+          : "";
+        const descHtml = act.description
+          ? `<div class="pt-desc">${escTip(act.description)}</div>`
+          : "";
+        const imgs = (act.images ?? []).slice(0, 3);
+        const imgsHtml = imgs.length
+          ? `<div class="pt-imgs">${imgs
+              .map(
+                (u) =>
+                  `<img src="${escTip(u)}" alt="" loading="lazy" onerror="this.style.display='none'">`,
+              )
+              .join("")}</div>`
           : "";
         const entityVisual =
           act.entityKind === "country"
@@ -1153,6 +1259,8 @@ export function bootstrapGlobeScene(
             ${subtypeRow}
             <div class="pt-row"><span class="pt-label">${t("year")}</span><span class="pt-val">${escTip(dateTxt)}</span></div>
           </div>
+          ${descHtml}
+          ${imgsHtml}
         `;
       }
 
@@ -1183,7 +1291,14 @@ export function bootstrapGlobeScene(
         wrap.appendChild(inner);
         wrap.addEventListener("click", (ev) => {
           ev.stopPropagation();
-          pinTip.classList.remove("show");
+          // Pin the detail card open so the images stay reachable.
+          cancelTipHide();
+          tipPinned = true;
+          pinTip.innerHTML =
+            buildTipHTML(act) +
+            `<button class="pt-close" aria-label="إغلاق">×</button>`;
+          pinTip.classList.add("show", "pinned");
+          placeTip(ev.clientX, ev.clientY);
           const w = window as any;
           if (typeof w.activateActivity === "function") {
             w.activateActivity(act);
@@ -1192,15 +1307,15 @@ export function bootstrapGlobeScene(
           }
         });
         wrap.addEventListener("mouseenter", (ev) => {
+          cancelTipHide();
           pinTip.innerHTML = buildTipHTML(act);
           pinTip.classList.add("show");
-          placeTip(ev.clientX, ev.clientY);
-        });
-        wrap.addEventListener("mousemove", (ev) => {
+          // Position once on enter (do not follow the cursor) so the card stays
+          // put and the user can move onto it to interact with the images.
           placeTip(ev.clientX, ev.clientY);
         });
         wrap.addEventListener("mouseleave", () => {
-          pinTip.classList.remove("show");
+          scheduleTipHide();
         });
         const marker = new maplibregl.Marker({
           element: wrap,

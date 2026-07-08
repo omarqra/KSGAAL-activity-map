@@ -1,5 +1,7 @@
 import { FileBarChart, FileSpreadsheet, FileText } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+
+import { requirePageAccess } from "@/lib/auth/require-page-access";
 
 import { PageHeader } from "@/components/dashboard/page-header";
 
@@ -15,6 +17,8 @@ function findCount(summary: ReportSummary, id: string): number {
 }
 
 export default async function ReportsPage() {
+  const locale = await getLocale();
+  await requirePageAccess(locale, "activities", "read");
   const t = await getTranslations("ReportsPage");
   const summary = await fetchReportsSummary().catch(() => EMPTY_SUMMARY);
 

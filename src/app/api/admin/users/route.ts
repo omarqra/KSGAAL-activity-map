@@ -7,11 +7,35 @@ import {
 import { auditFromRequest } from "@/lib/auth/audit";
 import { hashPassword } from "@/lib/auth/password";
 import { recordPasswordHistory } from "@/lib/auth/password-policy";
-import { requireApiRole, requireApiUser } from "@/lib/auth/require-api-user";
+import {
+  requireApiPermission,
+  requireApiUser,
+} from "@/lib/auth/require-api-user";
 import { prisma } from "@/lib/prisma";
 
 import { created, handleError, ok } from "../../_lib/http";
 import { userCreate } from "../../_lib/validators";
+
+/** Resolve a (role key, roleId) pair from whatever the client sent, keeping the
+    legacy `role` string and the new `roleId` foreign key in sync. */
+export async function resolveRole(
+  roleKey: string | undefined,
+  roleId: number | null | undefined
+): Promise<{ role: string; roleId: number | null }> {
+  if (roleId) {
+    const r = await prisma.role.findUnique({
+      where: { id: roleId },
+      select: { key: true },
+    });
+    if (r) return { role: r.key, roleId };
+  }
+  const key = roleKey ?? "admin";
+  const r = await prisma.role.findUnique({
+    where: { key },
+    select: { id: true },
+  });
+  return { role: key, roleId: r?.id ?? null };
+}
 
 export async function GET() {
   try {
@@ -24,6 +48,7 @@ export async function GET() {
         email: true,
         name: true,
         role: true,
+        roleId: true,
         isActive: true,
         lastLoginAt: true,
         passwordChangedAt: true,
@@ -47,15 +72,17 @@ export async function POST(req: NextRequest) {
     const rate = checkApiRateLimit(req, { bucket: "admin:users:write", max: 30 });
     if (!rate.allowed) return rateLimitResponse(rate.retryAfterSec);
 
-    const auth = await requireApiRole(["admin"]);
+    const auth = await requireApiPermission("users", "create");
     if (!auth.ok) return auth.response;
     const body = userCreate.parse(await req.json());
+    const resolved = await resolveRole(body.role, body.roleId);
     const passwordHash = await hashPassword(body.password);
     const row = await prisma.user.create({
       data: {
         email: body.email,
         name: body.name ?? null,
-        role: body.role,
+        role: resolved.role,
+        roleId: resolved.roleId,
         isActive: body.isActive ?? true,
         passwordHash,
       },
@@ -64,6 +91,7 @@ export async function POST(req: NextRequest) {
         email: true,
         name: true,
         role: true,
+        roleId: true,
         isActive: true,
         lastLoginAt: true,
         passwordChangedAt: true,

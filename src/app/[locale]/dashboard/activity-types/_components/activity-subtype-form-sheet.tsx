@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { resolveApiErrorMessage } from "@/lib/api-error";
 
 import type { ActivitySubtype, ActivityType } from "../_lib/api";
 
@@ -52,6 +53,7 @@ export function ActivitySubtypeFormSheet({
   onSuccess,
 }: Props) {
   const t = useTranslations("ActivityTypesPage");
+  const tErr = useTranslations("ApiErrors");
   const router = useRouter();
   const isEdit = !!initial;
 
@@ -149,7 +151,14 @@ export function ActivitySubtypeFormSheet({
       });
       const json = (await res.json()) as ApiEnvelope<unknown>;
       if (!res.ok || json.error) {
-        throw new Error(json.error?.message ?? "Request failed");
+        throw new Error(
+          resolveApiErrorMessage(
+            (k) => tErr(k as never),
+            json.error?.code,
+            json.error?.message,
+            isEdit ? t("formErrorGenericUpdate") : t("formErrorGenericCreate")
+          )
+        );
       }
       handleOpenChange(false);
       if (onSuccess) {

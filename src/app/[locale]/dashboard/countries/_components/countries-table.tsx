@@ -228,6 +228,7 @@ export function CountriesTable({ items, total }: CountriesTableProps) {
       <ResourceTable<Country, CountryTableRow>
         urlState={state}
         setParams={setParams}
+        resource="countries"
         title={
           <>
             {t("tableTitle")}{" "}
@@ -279,6 +280,28 @@ export function CountriesTable({ items, total }: CountriesTableProps) {
           message: (c) => t("deleteMessage", { name: c.nameAr }),
           confirmText: t("deleteConfirm"),
           cancelText: t("formActionCancel"),
+          transfer: {
+            fetchTargets: async (c) => {
+              const res = await fetch("/api/admin/countries?pageSize=300", {
+                cache: "no-store",
+              });
+              const json = await res.json();
+              const items: Array<{ id: number; nameAr: string }> =
+                json?.data?.items ?? [];
+              return items
+                .filter((x) => x.id !== c.id)
+                .map((x) => ({ id: x.id, label: x.nameAr }));
+            },
+            title: t("transferTitle"),
+            message: (c, count) =>
+              t("transferMessage", { name: c.nameAr, count }),
+            selectLabel: t("transferSelectLabel"),
+            selectPlaceholder: t("transferSelectPlaceholder"),
+            confirmText: t("transferConfirm"),
+            cancelText: t("formActionCancel"),
+            successText: () => t("transferSuccess"),
+            errorText: t("transferError"),
+          },
         }}
         editLabel={t("rowActionEdit")}
         deleteLabel={t("rowActionDelete")}

@@ -49,14 +49,21 @@ export interface ApiActivityOrganization {
 export interface ApiActivity {
   id: number;
   name: string;
+  titleAr: string | null;
+  titleEn: string | null;
   dateText: string | null;
   dateParsed: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  description: string | null;
+  images: string[];
   typeId: number;
   subtypeId: number | null;
   countryId: number | null;
   organizationId: number | null;
   lat: number | null;
   lng: number | null;
+  updatedAt: string;
   type: ApiActivityType;
   subtype: ApiActivitySubtype | null;
   country: ApiActivityCountry | null;

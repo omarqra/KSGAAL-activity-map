@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 
 import { auditFromRequest } from "@/lib/auth/audit";
-import { requireApiRole, requireApiUser } from "@/lib/auth/require-api-user";
+import { requireApiPermission, requireApiUser } from "@/lib/auth/require-api-user";
 import { prisma } from "@/lib/prisma";
 
 import {
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await requireApiRole(["admin", "editor"]);
+    const auth = await requireApiPermission("countries", "create");
     if (!auth.ok) return auth.response;
     const body = countryCreate.parse(await req.json());
     const row = await prisma.country.create({ data: body });

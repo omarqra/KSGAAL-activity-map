@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/components/permissions/permissions-provider";
 
 import type { ApiActivity } from "../_lib/api";
 import { ActivityFormSheet } from "./activity-form-sheet";
@@ -80,6 +81,7 @@ function downloadFile(filename: string, content: string, mime: string) {
 
 export function ActivitiesActions() {
   const t = useTranslations("ActivitiesPage");
+  const canCreate = usePermission("activities", "create");
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
@@ -132,6 +134,7 @@ export function ActivitiesActions() {
       >
         {exporting ? t("actionExporting") : t("actionExport")}
       </Button>
+      {canCreate && (
       <Button
         type="button"
         variant="primary"
@@ -141,6 +144,7 @@ export function ActivitiesActions() {
       >
         {t("actionCreate")}
       </Button>
+      )}
 
       <ActivityFormSheet
         open={createOpen}

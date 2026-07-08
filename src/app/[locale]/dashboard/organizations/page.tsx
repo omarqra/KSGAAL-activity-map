@@ -4,7 +4,9 @@ import {
   EyeOff,
   Globe2,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+
+import { requirePageAccess } from "@/lib/auth/require-page-access";
 
 import { type KpiItem, ListPageShell } from "../_components/shared";
 import { OrganizationsActions } from "./_components/organizations-actions";
@@ -79,6 +81,8 @@ const EMPTY_SUMMARY: OrganizationsSummary = {
 };
 
 export default async function OrganizationsPage({ searchParams }: PageProps) {
+  const locale = await getLocale();
+  await requirePageAccess(locale, "organizations", "read");
   const t = await getTranslations("OrganizationsPage");
   const sp = (await searchParams) ?? {};
   const q = sp.q?.trim() || undefined;

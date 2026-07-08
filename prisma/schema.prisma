@@ -7,12 +7,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Role {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique
+  nameAr      String
+  nameEn      String
+  isSystem    Boolean  @default(false)
+  permissions Json     @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+
+  @@index([key])
+}
+
 model User {
   id             Int       @id @default(autoincrement())
   email          String    @unique
   passwordHash   String
   name           String?
   role           String    @default("admin")
+  roleId         Int?
   isActive       Boolean   @default(true)
   lastLoginAt    DateTime?
   passwordChangedAt DateTime @default(now())
@@ -21,6 +37,7 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
+  roleRef             Role?                @relation(fields: [roleId], references: [id], onDelete: SetNull)
   loginAttempts       LoginAttempt[]
   otpCodes            OtpCode[]
   passwordResetTokens PasswordResetToken[]
@@ -29,6 +46,7 @@ model User {
 
   @@index([email])
   @@index([lockedUntil])
+  @@index([roleId])
 }
 
 model PasswordHistory {
@@ -180,8 +198,18 @@ model ActivitySubtype {
 model Activity {
   id             Int       @id @default(autoincrement())
   name           String
+  // Bilingual title (BRD feedback #23): separate AR/EN fields. `name` kept as
+  // legacy/fallback and backfilled into titleAr; the public globe still reads it.
+  titleAr        String?
+  titleEn        String?
   dateText       String?
   dateParsed     DateTime?
+  // Separate start/end dates (BRD feedback #22). `dateText`/`dateParsed` kept as
+  // legacy; startDate backfilled from dateParsed.
+  startDate      DateTime?
+  endDate        DateTime?
+  description    String?   // BRD feedback #21/#38 (50–150 words enforced in validator)
+  images         String[]  @default([]) // BRD feedback #8/#13/#32: up to 5 image URLs
   typeId         Int
   subtypeId      Int?
   countryId      Int?

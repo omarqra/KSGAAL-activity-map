@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { usePermission } from "@/components/permissions/permissions-provider";
 
 import type { AdminUser } from "../_lib/api";
 import { UserFormSheet } from "./user-form-sheet";
@@ -66,6 +67,7 @@ function downloadFile(filename: string, content: string, mime: string) {
 
 export function UsersActions() {
   const t = useTranslations("UsersPage");
+  const canCreate = usePermission("users", "create");
   const router = useRouter();
   const [refreshing, startRefresh] = useTransition();
   const [exporting, setExporting] = useState(false);
@@ -114,6 +116,7 @@ export function UsersActions() {
       >
         {exporting ? t("actionExporting") : t("actionExport")}
       </Button>
+      {canCreate && (
       <Button
         type="button"
         variant="primary"
@@ -122,6 +125,7 @@ export function UsersActions() {
       >
         {t("actionCreate")}
       </Button>
+      )}
 
       <UserFormSheet open={createOpen} onOpenChange={setCreateOpen} />
     </>

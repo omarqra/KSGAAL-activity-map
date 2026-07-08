@@ -1,5 +1,7 @@
 import { Activity, ShieldCheck, UserCheck, Users } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+
+import { requirePageAccess } from "@/lib/auth/require-page-access";
 
 import { type KpiItem, ListPageShell } from "../_components/shared";
 import { UsersActions } from "./_components/users-actions";
@@ -60,6 +62,8 @@ function buildKpis(summary: UsersSummary, t: UsersT): KpiItem[] {
 }
 
 export default async function UsersPage() {
+  const locale = await getLocale();
+  await requirePageAccess(locale, "users", "read");
   const t = await getTranslations("UsersPage");
 
   const [list, summary] = await Promise.all([

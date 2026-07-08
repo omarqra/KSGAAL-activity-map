@@ -4,7 +4,9 @@ import {
   Flag,
   Map,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
+
+import { requirePageAccess } from "@/lib/auth/require-page-access";
 
 import type { Tab } from "@/components/dashboard/tabs";
 import { Badge } from "@/components/ui/badge";
@@ -124,6 +126,8 @@ const EMPTY_SUMMARY: CountriesSummary = {
 export default async function CountriesPage({
   searchParams,
 }: CountriesPageProps) {
+  const locale = await getLocale();
+  await requirePageAccess(locale, "countries", "read");
   const t = await getTranslations("CountriesPage");
   const sp = (await searchParams) ?? {};
   const tabKey = sp.tab && sp.tab in TAB_TO_REGION ? sp.tab : "all";

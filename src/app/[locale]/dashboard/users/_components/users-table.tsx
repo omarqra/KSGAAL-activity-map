@@ -47,6 +47,7 @@ interface UserRow {
   name: string | null;
   displayName: string;
   role: string;
+  roleId: number | null;
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -83,6 +84,7 @@ function toRows(items: AdminUser[]): UserRow[] {
     name: u.name,
     displayName: u.name ?? u.email,
     role: u.role,
+    roleId: u.roleId,
     isActive: u.isActive,
     lastLoginAt: u.lastLoginAt,
     createdAt: u.createdAt,
@@ -203,6 +205,19 @@ export function UsersTable({ items }: UsersTableProps) {
       ),
     },
     {
+      key: "role",
+      label: t("colRole"),
+      sortable: true,
+      render: (row) =>
+        row.roleId != null ? (
+          <Badge variant="neutral">{row.role}</Badge>
+        ) : (
+          <Badge variant="error" dot>
+            {t("noRole")}
+          </Badge>
+        ),
+    },
+    {
       key: "isActive",
       label: t("colStatus"),
       sortable: true,
@@ -251,6 +266,7 @@ export function UsersTable({ items }: UsersTableProps) {
       <ResourceTable<AdminUser, UserRow>
         urlState={state}
         setParams={setParams}
+        resource="users"
         title={
           <>
             {t("tableTitle")}{" "}

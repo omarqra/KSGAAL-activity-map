@@ -1,4 +1,9 @@
 import { Locale, redirect } from "@/i18n/routing";
+import {
+  type PermissionMap,
+  ROLE_PRESETS,
+  normalizePermissions,
+} from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 import { getCurrentSession } from "./session";
@@ -8,6 +13,8 @@ export type AuthenticatedUser = {
   email: string;
   name: string | null;
   role: string;
+  roleId: number | null;
+  permissions: PermissionMap;
 };
 
 function redirectToLogin(locale: string, from?: string): never {
@@ -34,17 +41,31 @@ export async function requireUser(
 
   const user = await prisma.user.findUnique({
     where: { id },
-    select: { id: true, email: true, name: true, role: true, isActive: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      roleId: true,
+      isActive: true,
+      roleRef: { select: { permissions: true } },
+    },
   });
 
   if (!user || !user.isActive) {
     redirectToLogin(locale, fromPath);
   }
 
+  const permissions = user.roleRef
+    ? normalizePermissions(user.roleRef.permissions)
+    : (ROLE_PRESETS[user.role]?.permissions ?? {});
+
   return {
     id: user.id,
     email: user.email,
     name: user.name,
     role: user.role,
+    roleId: user.roleId,
+    permissions,
   };
 }
