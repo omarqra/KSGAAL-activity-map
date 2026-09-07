@@ -11,6 +11,7 @@ const jiti = createJiti(fileURLToPath(import.meta.url));
 jiti.import("./src/env/server.ts");
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   typedRoutes: true,
   images: {
