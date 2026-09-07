@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Base layer: shared, environment-agnostic resources.
+# Namespace is injected by each overlay (overlays/staging, overlays/production).
+# deployment.yaml and migration-job.yaml are NOT included here — the pipeline
+# applies them directly with `kubectl apply -n <ns> -f`, so it can:
+#   1. Run migrations first.
+#   2. Apply the Deployment only after migration succeeds.
+
+resources:
+  - configmap.yaml
+  - service.yaml
+  - ingress.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: ksgaal-activity-map

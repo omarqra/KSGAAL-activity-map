@@ -1,0 +1,32 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ksgaal-activity-map
+  # namespace injected by kustomize overlay
+  labels:
+    app.kubernetes.io/name: ksgaal-activity-map
+    app.kubernetes.io/part-of: ksgaal-activity-map
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    # Uncomment if cert-manager is installed:
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  # host and TLS are replaced wholesale by each overlay's ingress-patch.yaml
+  tls:
+    - hosts:
+        - example.com
+      secretName: ksgaal-tls
+  rules:
+    - host: example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ksgaal-activity-map
+                port:
+                  number: 80

@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ksgaal-activity-map
+# Replaces the entire tls + rules block from the base Ingress.
+# Update staging.example.com with the real staging hostname.
+spec:
+  tls:
+    - hosts:
+        - staging.example.com
+      secretName: ksgaal-staging-tls
+  rules:
+    - host: staging.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ksgaal-activity-map
+                port:
+                  number: 80
