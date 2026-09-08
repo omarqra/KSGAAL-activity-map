@@ -1,0 +1,49 @@
+# TEMPORARY probe pipeline — reports facts, deploys nothing. Delete after use.
+trigger: none
+pr: none
+
+pool:
+  name: Default
+
+steps:
+  - checkout: none
+
+  - script: echo OS=$(Agent.OS) NAME=$(Agent.Name)
+    displayName: "1. agent"
+    continueOnError: true
+
+  - script: node --version
+    displayName: "2. node"
+    continueOnError: true
+
+  - script: docker --version
+    displayName: "3. docker"
+    continueOnError: true
+
+  - script: docker run --rm hello-world
+    displayName: "4. docker works"
+    continueOnError: true
+
+  - script: curl -sS -m 20 -I https://registry.npmjs.org/
+    displayName: "5. internet"
+    continueOnError: true
+
+  - task: Kubernetes@1
+    displayName: "6. cluster login"
+    continueOnError: true
+    inputs:
+      connectionType: Kubernetes Service Connection
+      kubernetesServiceConnection: development-AATW
+      command: login
+
+  - script: kubectl config view --minify
+    displayName: "7. namespace"
+    continueOnError: true
+
+  - script: kubectl auth can-i --list
+    displayName: "8. permissions"
+    continueOnError: true
+
+  - script: kubectl get secrets
+    displayName: "9. secrets"
+    continueOnError: true
