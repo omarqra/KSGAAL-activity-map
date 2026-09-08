@@ -33,7 +33,7 @@ steps:
     continueOnError: true
     inputs:
       connectionType: Kubernetes Service Connection
-      kubernetesServiceConnection: development-AATW
+      kubernetesServiceEndpoint: development-AATW
       command: login
 
   - script: kubectl config view --minify

@@ -203,7 +203,7 @@ stages:
                   displayName: "Authenticate kubectl (staging)"
                   inputs:
                     connectionType: Kubernetes Service Connection
-                    kubernetesServiceConnection: $(kubernetesServiceConnection)
+                    kubernetesServiceEndpoint: $(kubernetesServiceConnection)
                     namespace: $(k8sNamespace)
                     command: login
 
@@ -327,7 +327,7 @@ stages:
                   displayName: "Authenticate kubectl (production)"
                   inputs:
                     connectionType: Kubernetes Service Connection
-                    kubernetesServiceConnection: $(kubernetesServiceConnection)
+                    kubernetesServiceEndpoint: $(kubernetesServiceConnection)
                     namespace: $(k8sNamespace)
                     command: login
 
