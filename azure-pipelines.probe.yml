@@ -1,4 +1,14 @@
 # TEMPORARY probe pipeline — reports facts, deploys nothing. Delete after use.
+#
+# Round 1 established: Linux agent, Docker works and can pull from Docker Hub,
+# outbound internet is open, Node is NOT installed, and the service account is
+# `azdevops-dev` in namespace `dev`.
+#
+# Round 2 (this file) tests the ONE thing still unknown: what that account is
+# actually allowed to do inside `dev` — every check is namespace-scoped.
+# `auth can-i` prints yes/no and exits 1 on "no", so each step is
+# continueOnError; the printed word is the answer, not the step colour.
+
 trigger: none
 pr: none
 
@@ -8,42 +18,43 @@ pool:
 steps:
   - checkout: none
 
-  - script: echo OS=$(Agent.OS) NAME=$(Agent.Name)
-    displayName: "1. agent"
-    continueOnError: true
-
-  - script: node --version
-    displayName: "2. node"
-    continueOnError: true
-
-  - script: docker --version
-    displayName: "3. docker"
-    continueOnError: true
-
-  - script: docker run --rm hello-world
-    displayName: "4. docker works"
-    continueOnError: true
-
-  - script: curl -sS -m 20 -I https://registry.npmjs.org/
-    displayName: "5. internet"
-    continueOnError: true
-
   - task: Kubernetes@1
-    displayName: "6. cluster login"
-    continueOnError: true
+    displayName: "0. cluster login"
     inputs:
       connectionType: Kubernetes Service Connection
       kubernetesServiceEndpoint: development-AATW
       command: login
 
-  - script: kubectl config view --minify
-    displayName: "7. namespace"
+  - script: kubectl auth can-i --list -n dev
+    displayName: "1. full permission list in dev"
     continueOnError: true
 
-  - script: kubectl auth can-i --list
-    displayName: "8. permissions"
+  - script: kubectl get all -n dev
+    displayName: "2. what already runs in dev"
     continueOnError: true
 
-  - script: kubectl get secrets
-    displayName: "9. secrets"
+  - script: kubectl auth can-i create deployment -n dev
+    displayName: "3. create deployment?"
+    continueOnError: true
+
+  - script: kubectl auth can-i create service -n dev
+    displayName: "4. create service?"
+    continueOnError: true
+
+  - script: kubectl auth can-i create ingress -n dev
+    displayName: "5. create ingress?"
+    continueOnError: true
+
+  - script: kubectl auth can-i create secret -n dev
+    displayName: "6. create secret?"
+    continueOnError: true
+
+  - script: kubectl auth can-i create job -n dev
+    displayName: "7. create job?"
+    continueOnError: true
+
+  # An existing imagePullSecret here would tell us which registry the cluster
+  # pulls from — the other open question.
+  - script: kubectl get secrets -n dev
+    displayName: "8. secrets in dev (imagePullSecret?)"
     continueOnError: true
