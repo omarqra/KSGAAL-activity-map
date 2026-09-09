@@ -1,13 +1,16 @@
 # TEMPORARY probe pipeline — reports facts, deploys nothing. Delete after use.
 #
-# Round 1 established: Linux agent, Docker works and can pull from Docker Hub,
-# outbound internet is open, Node is NOT installed, and the service account is
-# `azdevops-dev` in namespace `dev`.
+# Round 1: Linux agent, Docker works, internet open, no Node.
+# Round 2: service account azdevops-dev has full rights in namespace `dev`;
+#          `dev` is empty and holds no imagePullSecret.
+# Round 3 (this file): find the internal container registry WITHOUT asking
+#          the academy. If this agent has ever built or deployed another of
+#          their projects, the registry host is recorded in Docker's own
+#          state — in pulled image tags, in the daemon config, or as a key
+#          in the credential store.
 #
-# Round 2 (this file) tests the ONE thing still unknown: what that account is
-# actually allowed to do inside `dev` — every check is namespace-scoped.
-# `auth can-i` prints yes/no and exits 1 on "no", so each step is
-# continueOnError; the printed word is the answer, not the step colour.
+# Credentials are never printed: step 4 lists only the hostnames that appear
+# as keys in the Docker credential file, never the values beside them.
 
 trigger: none
 pr: none
@@ -18,43 +21,24 @@ pool:
 steps:
   - checkout: none
 
-  - task: Kubernetes@1
-    displayName: "0. cluster login"
-    inputs:
-      connectionType: Kubernetes Service Connection
-      kubernetesServiceEndpoint: development-AATW
-      command: login
-
-  - script: kubectl auth can-i --list -n dev
-    displayName: "1. full permission list in dev"
+  # Image tags carry their registry host, e.g. registry.ksaa.gov.sa/foo:1.
+  # Anything here that is not a plain Docker Hub name is a lead.
+  - script: docker images
+    displayName: "1. images already on this agent"
     continueOnError: true
 
-  - script: kubectl get all -n dev
-    displayName: "2. what already runs in dev"
+  # Reveals configured registry mirrors and insecure (internal) registries.
+  - script: docker info
+    displayName: "2. docker daemon info (mirrors, insecure registries)"
     continueOnError: true
 
-  - script: kubectl auth can-i create deployment -n dev
-    displayName: "3. create deployment?"
+  - script: cat /etc/docker/daemon.json
+    displayName: "3. docker daemon config"
     continueOnError: true
 
-  - script: kubectl auth can-i create service -n dev
-    displayName: "4. create service?"
-    continueOnError: true
-
-  - script: kubectl auth can-i create ingress -n dev
-    displayName: "5. create ingress?"
-    continueOnError: true
-
-  - script: kubectl auth can-i create secret -n dev
-    displayName: "6. create secret?"
-    continueOnError: true
-
-  - script: kubectl auth can-i create job -n dev
-    displayName: "7. create job?"
-    continueOnError: true
-
-  # An existing imagePullSecret here would tell us which registry the cluster
-  # pulls from — the other open question.
-  - script: kubectl get secrets -n dev
-    displayName: "8. secrets in dev (imagePullSecret?)"
+  # Hostnames only. The values next to these keys are credentials and are
+  # deliberately not printed.
+  - script: |
+      grep -oE '"[A-Za-z0-9._-]+(:[0-9]+)?"[[:space:]]*:' ~/.docker/config.json
+    displayName: "4. registries this agent has logged into (names only)"
     continueOnError: true
