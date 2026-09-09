@@ -14,10 +14,16 @@ ENV NODE_ENV=production
 # Install full dependencies (incl. devDependencies needed for `next build`).
 FROM base AS deps
 ENV NODE_ENV=development
+# The academy's build agent is memory-starved and its kernel OOM-killed an
+# uncapped `npm ci` (exit 137). Capping V8's heap keeps installs and builds
+# inside the machine's real budget; override with --build-arg on roomier hosts.
+ARG NODE_HEAP_MB=2048
+ENV NODE_OPTIONS=--max-old-space-size=${NODE_HEAP_MB}
+ENV HUSKY=0
 COPY package.json package-lock.json* ./
 # Prisma postinstall calls `prisma generate` and needs the schema.
 COPY prisma ./prisma
-RUN npm ci
+RUN npm ci --prefer-offline --no-audit --no-fund --maxsockets 3
 
 
 # ---------- builder ----------
@@ -25,6 +31,9 @@ RUN npm ci
 FROM base AS builder
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+# Same heap cap as the deps stage — `next build` is the heaviest step of all.
+ARG NODE_HEAP_MB=2048
+ENV NODE_OPTIONS=--max-old-space-size=${NODE_HEAP_MB}
 
 # Build-time public env (baked into the client bundle). Override at build time
 # with `--build-arg NEXT_PUBLIC_FRONTEND_URL=...` etc.

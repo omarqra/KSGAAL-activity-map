@@ -66,11 +66,33 @@ variables:
   - name: tag
     value: "$(Build.BuildId)"
 
+  # V8 heap ceiling for every Node process this pipeline starts, on the agent
+  # and inside the image build. Raise it only if the agent gets more RAM.
+  - name: nodeHeapMb
+    value: "2048"
+
   - group: aatw-dev
 
 stages:
   # =========================================================================
   # Stage 1 — Validate. Runs on every PR and push. No cluster, no registry.
+  #
+  # Tuned for KMO-ANSB-TOOL01, which is shared with the academy's other teams.
+  # `npm ci` was killed there three times; run #20260909.4 gave the cause with
+  # no ambiguity: `Killed` / `Bash exited with code '137'` — SIGKILL from the
+  # kernel OOM killer. The agent has too little free RAM, so every choice below
+  # exists to cut peak memory:
+  #   • `npm run build` was removed — the image build in Stage 2 runs the exact
+  #     same `npm ci` + `prisma generate` + `next build`, so keeping it here
+  #     compiled the whole app twice on one starved machine. `tsc --noEmit`
+  #     still gates type errors.
+  #   • NODE_OPTIONS caps V8's heap. Uncapped, Node grows until the kernel
+  #     kills it (137) and takes the agent's connection down with it; capped,
+  #     it collects garbage harder and, worst case, fails with a readable
+  #     "JavaScript heap out of memory" instead of a silent death.
+  #   • npm's audit/fund/progress network chatter and husky's git hooks are off.
+  #   • Shallow clone and a hard timeout so a stall fails fast, not after an
+  #     hour of holding the only agent in the pool.
   # =========================================================================
   - stage: Validate
     displayName: "Validate"
@@ -78,7 +100,37 @@ stages:
       - job: Validate
         pool:
           name: Default
+        timeoutInMinutes: 30
+        variables:
+          - name: NODE_OPTIONS
+            value: "--max-old-space-size=$(nodeHeapMb)"
+          - name: NEXT_TELEMETRY_DISABLED
+            value: "1"
+          - name: HUSKY
+            value: "0"
+          - name: npm_config_audit
+            value: "false"
+          - name: npm_config_fund
+            value: "false"
+          - name: npm_config_progress
+            value: "false"
         steps:
+          - checkout: self
+            fetchDepth: 1
+
+          # Runs in about a second. If the agent dies again, this is the log
+          # line that says whether it ran out of memory, disk, or CPU.
+          - bash: |
+              echo "--- cpu ---";    nproc
+              echo "--- memory ---"; free -h  || true
+              echo "--- swap ---";   swapon --show || echo "no swap"
+              echo "--- top memory consumers on this shared agent ---"
+              ps -eo pid,user,rss,comm --sort=-rss | head -12 || true
+              echo "--- disk ---";   df -h "$(Agent.WorkFolder)" / /tmp || true
+              echo "--- load ---";   uptime   || true
+            displayName: "Agent resources (diagnostic)"
+            continueOnError: true
+
           # The agent has no Node at all, so this task is mandatory rather
           # than a version pin. It downloads Node — safe, internet is open.
           - task: NodeTool@0
@@ -86,29 +138,30 @@ stages:
             inputs:
               versionSpec: "20.x"
 
-          - script: npm ci
+          # --prefer-offline reuses the agent's ~/.npm cache across runs, which
+          # persists because the agent is self-hosted. --maxsockets throttles
+          # parallel downloads: the default of 15 is what pinned this machine.
+          - bash: |
+              set -euo pipefail
+              npm ci --prefer-offline --no-audit --no-fund --maxsockets 3
             displayName: "npm ci"
 
-          - script: npx prisma generate
+          - bash: |
+              set -euo pipefail
+              npx prisma generate
             displayName: "prisma generate"
             env:
               DATABASE_URL: "postgresql://x:x@localhost:5432/x"
 
-          - script: npm run lint
+          - bash: |
+              set -euo pipefail
+              npm run lint
             displayName: "npm run lint"
 
-          - script: npm run ts-check
+          - bash: |
+              set -euo pipefail
+              npm run ts-check
             displayName: "npm run ts-check"
-
-          - script: npm run build
-            displayName: "npm run build (CI smoke, no real secrets)"
-            env:
-              NODE_ENV: production
-              APP_ENV: prod
-              DATABASE_URL: "postgresql://x:x@localhost:5432/x"
-              JWT_SECRET: "ci-placeholder-not-used-at-runtime-32chars!"
-              NEXT_PUBLIC_FRONTEND_URL: "https://example.com"
-              NEXT_PUBLIC_BACKEND_URL: "https://example.com"
 
   # =========================================================================
   # Stage 2 — Build and push to OCIR. Main branch only.
@@ -160,6 +213,7 @@ stages:
                 -f "$(dockerfilePath)" \
                 -t "$IMAGE:$(tag)" \
                 -t "$IMAGE:latest" \
+                --build-arg NODE_HEAP_MB="$(nodeHeapMb)" \
                 --build-arg NEXT_PUBLIC_FRONTEND_URL="$(NEXT_PUBLIC_FRONTEND_URL)" \
                 --build-arg NEXT_PUBLIC_BACKEND_URL="$(NEXT_PUBLIC_BACKEND_URL)" \
                 --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)" \
