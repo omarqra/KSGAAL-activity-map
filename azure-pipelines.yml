@@ -86,14 +86,6 @@ stages:
             inputs:
               versionSpec: "20.x"
 
-          - task: Cache@2
-            displayName: "Cache npm"
-            inputs:
-              key: 'npm | "$(Agent.OS)" | package-lock.json'
-              restoreKeys: |
-                npm | "$(Agent.OS)"
-              path: ~/.npm
-
           - script: npm ci
             displayName: "npm ci"
 
@@ -187,10 +179,6 @@ stages:
             displayName: "Log out of OCIR"
             condition: always()
 
-          - publish: $(Build.SourcesDirectory)/k8s
-            artifact: k8s-manifests
-            displayName: "Publish k8s manifests"
-
   # =========================================================================
   # Stage 3 — Deploy to the `development` environment (namespace `dev`).
   # =========================================================================
@@ -208,8 +196,9 @@ stages:
           runOnce:
             deploy:
               steps:
-                - download: current
-                  artifact: k8s-manifests
+                # Manifests come straight from the repo at this commit rather
+                # than a pipeline artifact — same content, one less service.
+                - checkout: self
 
                 - task: Kubernetes@1
                   displayName: "Authenticate kubectl"
@@ -221,7 +210,7 @@ stages:
 
                 - bash: |
                     set -euo pipefail
-                    BASE="$(Pipeline.Workspace)/k8s-manifests/base"
+                    BASE="$(Build.SourcesDirectory)/k8s/base"
                     sed -i \
                       -e "s#REGISTRY_HOST#$(registryHost)/$(registryNamespace)#g" \
                       -e "s#IMAGE_TAG#$(tag)#g" \
@@ -251,7 +240,7 @@ stages:
                 - bash: |
                     set -euo pipefail
                     kubectl apply -k \
-                      "$(Pipeline.Workspace)/k8s-manifests/overlays/dev/"
+                      "$(Build.SourcesDirectory)/k8s/overlays/dev/"
                   displayName: "Apply ConfigMap, Service, Ingress"
 
                 # Secret values come from the aatw-dev group. They are passed
@@ -291,7 +280,7 @@ stages:
                 - bash: |
                     set -euo pipefail
                     kubectl apply -n "$(k8sNamespace)" \
-                      -f "$(Pipeline.Workspace)/k8s-manifests/base/migration-job.yaml"
+                      -f "$(Build.SourcesDirectory)/k8s/base/migration-job.yaml"
                   displayName: "Apply migration Job"
 
                 # Migrations must succeed before the Deployment is touched,
@@ -312,7 +301,7 @@ stages:
                 - bash: |
                     set -euo pipefail
                     kubectl apply -n "$(k8sNamespace)" \
-                      -f "$(Pipeline.Workspace)/k8s-manifests/base/deployment.yaml"
+                      -f "$(Build.SourcesDirectory)/k8s/base/deployment.yaml"
                   displayName: "Apply Deployment"
 
                 - bash: |
