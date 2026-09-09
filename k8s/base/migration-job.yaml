@@ -18,6 +18,10 @@ spec:
     spec:
       restartPolicy: Never
       automountServiceAccountToken: false
+      # Created by the pipeline from the OCIR credentials in the
+      # aatw-dev variable group — OCIR repositories are private.
+      imagePullSecrets:
+        - name: ocir-pull-secret
       securityContext:
         runAsNonRoot: true
         runAsUser: 1001

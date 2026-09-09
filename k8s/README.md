@@ -42,10 +42,19 @@ running Deployment.
 |---------------|-----------|
 | `development` | `dev`     |
 
-`dev` is owned and created by the academy. The image reference in
-`deployment.yaml` and `migration-job.yaml` carries a `REGISTRY_HOST`
-placeholder that the pipeline substitutes — the registry itself is still
-unresolved, and `dev` currently holds no imagePullSecret.
+`dev` is owned and created by the academy.
+
+## Registry
+
+Images live in Oracle Cloud's registry in Jeddah:
+`jed.ocir.io/axzbw7rafu2r/ksgaal-activity-map`. The `REGISTRY_HOST` and
+`IMAGE_TAG` placeholders in `deployment.yaml` and `migration-job.yaml` are
+substituted by the pipeline at deploy time.
+
+Those repositories are private, so both pod specs reference an
+`ocir-pull-secret`. The pipeline creates it in `dev` from the OCIR
+credentials in the `aatw-dev` variable group — it does not need to exist
+beforehand.
 
 ## Required Secret
 
