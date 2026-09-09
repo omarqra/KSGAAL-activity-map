@@ -32,7 +32,7 @@ spec:
       containers:
         - name: app
           # Placeholder replaced by sed in the pipeline before apply.
-          image: ACR_LOGIN_SERVER/ksgaal-activity-map:IMAGE_TAG
+          image: REGISTRY_HOST/ksgaal-activity-map:IMAGE_TAG
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

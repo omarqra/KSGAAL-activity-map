@@ -1,0 +1,25 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Development overlay — namespace: dev
+#
+# There is deliberately NO namespace.yaml here. The pipeline's service account
+# (`azdevops-dev`) holds full rights *inside* `dev` but none at cluster scope,
+# so creating a Namespace would be refused. The academy owns `dev`; we only
+# deploy into it.
+#
+# Apply with:    kubectl apply -k k8s/overlays/dev/
+# Validate with: kubectl kustomize k8s/overlays/dev/
+
+namespace: dev
+
+resources:
+  - ../../base
+
+patches:
+  - path: configmap-patch.yaml
+  - path: ingress-patch.yaml
+
+commonLabels:
+  app.kubernetes.io/part-of: ksgaal-activity-map
+  environment: dev

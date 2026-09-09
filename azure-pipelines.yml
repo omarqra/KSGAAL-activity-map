@@ -1,84 +1,87 @@
 # ---------------------------------------------------------------------------
-# Azure DevOps pipeline — ksgaal-activity-map (Next.js 16 + Prisma 6)
+# Azure DevOps pipeline — ksgaal-activity-map
+# Target: the academy's internal Azure DevOps Server (devops.ksaa.gov.sa),
+#         collection Dev_Vendors, project Arabic-Around-theWorld.
+#
+# Everything below was verified by a probe run on 2026-09-09, not assumed:
+#   • Agent pool `Default`, single self-hosted Linux agent KMO-ANSB-TOOL01.
+#     There are NO Microsoft-hosted agents — `vmImage` cannot be used.
+#   • Docker is installed, usable by the agent account, and can pull from
+#     Docker Hub. Outbound internet is open (npm registry reachable).
+#   • Node is NOT installed on the agent — NodeTool below installs it.
+#   • Service connection `development-AATW` is a Kubernetes connection using
+#     token auth for service account `azdevops-dev` in namespace `dev`.
+#     It has full rights inside `dev` and none at cluster scope, so this
+#     pipeline never creates a Namespace.
+#   • Namespace `dev` is currently empty and holds no imagePullSecret.
+#   • Only one environment exists: `development`.
 #
 # ┌─────────────────────────────────────────────────────────────────────────┐
-# │  REQUIRED AZURE DEVOPS SETUP (one-time, in the DevOps project UI)       │
-# ├──────────────────────────────┬──────────────────────────────────────────┤
-# │  Variable group              │  Variables                               │
-# ├──────────────────────────────┼──────────────────────────────────────────┤
-# │  ksgaal-common               │  vmImageName = ubuntu-latest             │
-# │  (non-secret, both envs)     │  imageRepository = ksgaal-activity-map   │
-# │                              │  dockerRegistryServiceConnection = <name>│
-# │                              │  ACR_LOGIN_SERVER = <name>.azurecr.io    │
-# ├──────────────────────────────┼──────────────────────────────────────────┤
-# │  ksgaal-staging-shared       │  k8sNamespace = ksgaal-staging           │
-# │  (non-secret, staging)       │  kubernetesServiceConnection = <name>    │
-# │                              │  APP_URL = https://staging.example.com   │
-# │                              │  NEXT_PUBLIC_FRONTEND_URL = https://...  │
-# │                              │  NEXT_PUBLIC_BACKEND_URL = https://...   │
-# │                              │  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = ...   │
-# ├──────────────────────────────┼──────────────────────────────────────────┤
-# │  ksgaal-staging-secrets      │  DATABASE_URL            [secret]        │
-# │  (secret / Key Vault linked) │  JWT_SECRET              [secret]        │
-# │                              │  SMTP_USER               [secret]        │
-# │                              │  SMTP_PASS               [secret]        │
-# │                              │  ADMIN_EMAIL             [secret]        │
-# │                              │  ADMIN_PASSWORD          [secret]        │
-# │                              │  ADMIN_NAME              [secret]        │
-# ├──────────────────────────────┼──────────────────────────────────────────┤
-# │  ksgaal-production-shared    │  k8sNamespace = ksgaal-production        │
-# │  (non-secret, production)    │  kubernetesServiceConnection = <name>    │
-# │                              │  APP_URL = https://example.com           │
-# │                              │  NEXT_PUBLIC_FRONTEND_URL = https://...  │
-# │                              │  NEXT_PUBLIC_BACKEND_URL = https://...   │
-# │                              │  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY = ...   │
-# ├──────────────────────────────┼──────────────────────────────────────────┤
-# │  ksgaal-production-secrets   │  (same keys as staging-secrets)  [secret]│
-# ├──────────────────────────────┼──────────────────────────────────────────┤
-# │  Azure DevOps Environments   │  staging     — no approval (auto-deploy) │
-# │                              │  production  — manual approval required  │
-# └──────────────────────────────┴──────────────────────────────────────────┘
+# │  STILL BLOCKED — the academy has not supplied a container registry.     │
+# │  No Docker Registry service connection exists in the project, and `dev` │
+# │  has no imagePullSecret. Until that is resolved the BuildAndPush and    │
+# │  Deploy stages cannot run. Set the two registry variables below and     │
+# │  create the pull secret in `dev` once they answer.                      │
+# └─────────────────────────────────────────────────────────────────────────┘
 #
-# NEXT_PUBLIC_* variables are baked into the Docker image at build time.
-# A separate image is built for staging (refs/heads/staging) and production
-# (refs/heads/main). Both images land in the same ACR repo but different tags.
+# Variable group `aatw-dev` must be created in Library with:
+#   non-secret:  APP_URL, NEXT_PUBLIC_FRONTEND_URL, NEXT_PUBLIC_BACKEND_URL,
+#                NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+#   secret:      DATABASE_URL, JWT_SECRET, SMTP_USER, SMTP_PASS,
+#                ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME
+#
+# NEXT_PUBLIC_* are baked into the client bundle at image build time.
 # ---------------------------------------------------------------------------
 
 trigger:
   branches:
     include:
       - main
-      - staging
 
 pr:
   branches:
     include:
       - main
-      - staging
 
-# ── Top-level variables: only pipeline-mechanics values that never differ ──
 variables:
-  - group: ksgaal-common
+  - name: kubernetesServiceConnection
+    value: "development-AATW"
+  - name: k8sNamespace
+    value: "dev"
+  - name: imageRepository
+    value: "ksgaal-activity-map"
   - name: dockerfilePath
     value: "Dockerfile"
   - name: tag
     value: "$(Build.BuildId)"
 
-# ===========================================================================
-# Stage 1 — Validate
-# Runs on every PR and every push (including non-deploy branches).
-# Uses inline placeholders only — no env-specific variable groups needed.
-# ===========================================================================
+  # ── UNRESOLVED: fill both once the academy provides a registry ──────────
+  # dockerRegistryServiceConnection = name of a Docker Registry service
+  #   connection created under Project settings → Service connections.
+  # registryLoginServer = its host, e.g. registry.ksaa.gov.sa — this is
+  #   substituted into the k8s manifests in place of REGISTRY_HOST.
+  - name: dockerRegistryServiceConnection
+    value: ""
+  - name: registryLoginServer
+    value: ""
+
+  - group: aatw-dev
+
 stages:
+  # =========================================================================
+  # Stage 1 — Validate. Runs on every PR and push. No cluster, no registry.
+  # =========================================================================
   - stage: Validate
     displayName: "Validate"
     jobs:
       - job: Validate
         pool:
-          vmImage: $(vmImageName)
+          name: Default
         steps:
+          # The agent has no Node at all, so this task is mandatory, not a
+          # version pin. It downloads Node — safe here, internet is open.
           - task: NodeTool@0
-            displayName: "Use Node 20"
+            displayName: "Install Node 20"
             inputs:
               versionSpec: "20.x"
 
@@ -115,35 +118,32 @@ stages:
               NEXT_PUBLIC_BACKEND_URL: "https://example.com"
 
   # =========================================================================
-  # Stage 2 — Build & Push Docker image
-  # Runs only on the staging or main branch.
-  # Loads the environment-specific variable group so the correct NEXT_PUBLIC_*
-  # URLs are baked into the client bundle at build time.
+  # Stage 2 — Build and push the image. Main branch only.
+  # Guarded on the registry variables so it fails with a readable message
+  # instead of a confusing Docker task error while they are still empty.
   # =========================================================================
   - stage: BuildAndPush
-    displayName: "Build and push Docker image"
+    displayName: "Build and push image"
     dependsOn: Validate
     condition: |
-      and(
-        succeeded(),
-        in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/staging')
-      )
-    # Conditionally load the variable group that matches the branch.
-    # Template expressions (${{ }}) are evaluated at compile time.
-    variables:
-      - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/staging') }}:
-        - group: ksgaal-staging-shared
-      - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-        - group: ksgaal-production-shared
+      and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - job: Docker
         pool:
-          vmImage: $(vmImageName)
+          name: Default
         steps:
-          # Build image — pass NEXT_PUBLIC_* as build-args so they are baked
-          # into the client bundle for the target environment.
+          - bash: |
+              set -euo pipefail
+              if [ -z "$(dockerRegistryServiceConnection)" ] || [ -z "$(registryLoginServer)" ]; then
+                echo "##[error] No container registry configured."
+                echo "##[error] Set dockerRegistryServiceConnection and registryLoginServer"
+                echo "##[error] at the top of azure-pipelines.yml (or in the aatw-dev group)."
+                exit 1
+              fi
+            displayName: "Check registry is configured"
+
           - task: Docker@2
-            displayName: "Build Docker image"
+            displayName: "Build image"
             inputs:
               command: build
               repository: $(imageRepository)
@@ -159,7 +159,7 @@ stages:
                 --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
 
           - task: Docker@2
-            displayName: "Push Docker image"
+            displayName: "Push image"
             inputs:
               command: push
               repository: $(imageRepository)
@@ -168,29 +168,23 @@ stages:
                 $(tag)
                 latest
 
-          # Publish the k8s directory so deploy stages can use it without
-          # checking out the repo again.
           - publish: $(Build.SourcesDirectory)/k8s
             artifact: k8s-manifests
             displayName: "Publish k8s manifests"
 
   # =========================================================================
-  # Stage 3 — Deploy to Staging
-  # Triggered by refs/heads/staging only. Auto-deploy (no manual approval).
+  # Stage 3 — Deploy to the `development` environment (namespace `dev`).
   # =========================================================================
-  - stage: DeployStaging
-    displayName: "Deploy — staging"
+  - stage: DeployDevelopment
+    displayName: "Deploy — development"
     dependsOn: BuildAndPush
     condition: |
-      and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/staging'))
-    variables:
-      - group: ksgaal-staging-shared
-      - group: ksgaal-staging-secrets
+      and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
-      - deployment: DeployStaging
-        environment: staging
+      - deployment: DeployDevelopment
+        environment: development
         pool:
-          vmImage: $(vmImageName)
+          name: Default
         strategy:
           runOnce:
             deploy:
@@ -198,38 +192,36 @@ stages:
                 - download: current
                   artifact: k8s-manifests
 
-                # ── 1. Authenticate kubectl via service connection ──────────
                 - task: Kubernetes@1
-                  displayName: "Authenticate kubectl (staging)"
+                  displayName: "Authenticate kubectl"
                   inputs:
                     connectionType: Kubernetes Service Connection
                     kubernetesServiceEndpoint: $(kubernetesServiceConnection)
                     namespace: $(k8sNamespace)
                     command: login
 
-                # ── 2. Substitute image placeholders in base manifests ──────
                 - bash: |
                     set -euo pipefail
                     BASE="$(Pipeline.Workspace)/k8s-manifests/base"
                     sed -i \
-                      -e "s#ACR_LOGIN_SERVER#$(ACR_LOGIN_SERVER)#g" \
+                      -e "s#REGISTRY_HOST#$(registryLoginServer)#g" \
                       -e "s#IMAGE_TAG#$(tag)#g" \
                       "$BASE/deployment.yaml" \
                       "$BASE/migration-job.yaml"
                   displayName: "Substitute image placeholders"
 
-                # ── 3. Apply namespace, ConfigMap, Service, Ingress ─────────
+                # ConfigMap, Service, Ingress. The overlay contains no
+                # Namespace resource — the token cannot create one, and `dev`
+                # already exists.
                 - bash: |
                     set -euo pipefail
                     kubectl apply -k \
-                      "$(Pipeline.Workspace)/k8s-manifests/overlays/staging/"
-                  displayName: "Apply namespace, ConfigMap, Service, Ingress"
+                      "$(Pipeline.Workspace)/k8s-manifests/overlays/dev/"
+                  displayName: "Apply ConfigMap, Service, Ingress"
 
-                # ── 4. Create/update Kubernetes Secret ──────────────────────
-                # Secret values come from the ksgaal-staging-secrets variable
-                # group (Azure Key Vault linked). They are never written to a
-                # file or printed in plain text — ADO masks secret variables
-                # in logs, and the values are passed via shell environment only.
+                # Secret values come from the aatw-dev group. They are passed
+                # through the shell environment only — never written to a file
+                # and never echoed; Azure DevOps masks secret variables in logs.
                 - bash: |
                     set -euo pipefail
                     kubectl -n "$(k8sNamespace)" create secret generic \
@@ -252,7 +244,8 @@ stages:
                     SECRET_ADMIN_PASSWORD: $(ADMIN_PASSWORD)
                     SECRET_ADMIN_NAME: $(ADMIN_NAME)
 
-                # ── 5. Remove previous migration Job (idempotent re-run) ────
+                # A Job is immutable, so the previous one must go before the
+                # new one can be applied.
                 - bash: |
                     set -euo pipefail
                     kubectl -n "$(k8sNamespace)" delete job \
@@ -260,14 +253,14 @@ stages:
                       --ignore-not-found=true
                   displayName: "Remove previous migration Job"
 
-                # ── 6. Apply migration Job ───────────────────────────────────
                 - bash: |
                     set -euo pipefail
                     kubectl apply -n "$(k8sNamespace)" \
                       -f "$(Pipeline.Workspace)/k8s-manifests/base/migration-job.yaml"
                   displayName: "Apply migration Job"
 
-                # ── 7. Wait for migration — pipeline fails if Job fails ──────
+                # Migrations must succeed before the Deployment is touched,
+                # otherwise new pods would start against an old schema.
                 - bash: |
                     set -euo pipefail
                     if ! kubectl -n "$(k8sNamespace)" wait \
@@ -281,137 +274,15 @@ stages:
                     fi
                   displayName: "Wait for migration Job"
 
-                # ── 8. Apply Deployment (only after successful migration) ────
                 - bash: |
                     set -euo pipefail
                     kubectl apply -n "$(k8sNamespace)" \
                       -f "$(Pipeline.Workspace)/k8s-manifests/base/deployment.yaml"
                   displayName: "Apply Deployment"
 
-                # ── 9. Wait for rollout ──────────────────────────────────────
                 - bash: |
                     set -euo pipefail
                     kubectl -n "$(k8sNamespace)" rollout status \
                       deployment/ksgaal-activity-map \
                       --timeout=300s
-                  displayName: "Wait for rollout"
-
-  # =========================================================================
-  # Stage 4 — Deploy to Production
-  # Triggered by refs/heads/main only.
-  # The `production` environment in Azure DevOps must have a manual approval
-  # check configured in the UI — this YAML only references it by name.
-  # =========================================================================
-  - stage: DeployProduction
-    displayName: "Deploy — production"
-    dependsOn: BuildAndPush
-    condition: |
-      and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
-    variables:
-      - group: ksgaal-production-shared
-      - group: ksgaal-production-secrets
-    jobs:
-      - deployment: DeployProduction
-        environment: production
-        pool:
-          vmImage: $(vmImageName)
-        strategy:
-          runOnce:
-            deploy:
-              steps:
-                - download: current
-                  artifact: k8s-manifests
-
-                # ── 1. Authenticate kubectl via service connection ──────────
-                - task: Kubernetes@1
-                  displayName: "Authenticate kubectl (production)"
-                  inputs:
-                    connectionType: Kubernetes Service Connection
-                    kubernetesServiceEndpoint: $(kubernetesServiceConnection)
-                    namespace: $(k8sNamespace)
-                    command: login
-
-                # ── 2. Substitute image placeholders in base manifests ──────
-                - bash: |
-                    set -euo pipefail
-                    BASE="$(Pipeline.Workspace)/k8s-manifests/base"
-                    sed -i \
-                      -e "s#ACR_LOGIN_SERVER#$(ACR_LOGIN_SERVER)#g" \
-                      -e "s#IMAGE_TAG#$(tag)#g" \
-                      "$BASE/deployment.yaml" \
-                      "$BASE/migration-job.yaml"
-                  displayName: "Substitute image placeholders"
-
-                # ── 3. Apply namespace, ConfigMap, Service, Ingress ─────────
-                - bash: |
-                    set -euo pipefail
-                    kubectl apply -k \
-                      "$(Pipeline.Workspace)/k8s-manifests/overlays/production/"
-                  displayName: "Apply namespace, ConfigMap, Service, Ingress"
-
-                # ── 4. Create/update Kubernetes Secret ──────────────────────
-                - bash: |
-                    set -euo pipefail
-                    kubectl -n "$(k8sNamespace)" create secret generic \
-                      ksgaal-activity-map-secrets \
-                      --from-literal=DATABASE_URL="$SECRET_DATABASE_URL" \
-                      --from-literal=JWT_SECRET="$SECRET_JWT_SECRET" \
-                      --from-literal=SMTP_USER="$SECRET_SMTP_USER" \
-                      --from-literal=SMTP_PASS="$SECRET_SMTP_PASS" \
-                      --from-literal=ADMIN_EMAIL="$SECRET_ADMIN_EMAIL" \
-                      --from-literal=ADMIN_PASSWORD="$SECRET_ADMIN_PASSWORD" \
-                      --from-literal=ADMIN_NAME="$SECRET_ADMIN_NAME" \
-                      --dry-run=client -o yaml | kubectl apply -f -
-                  displayName: "Create/update Kubernetes Secret"
-                  env:
-                    SECRET_DATABASE_URL: $(DATABASE_URL)
-                    SECRET_JWT_SECRET: $(JWT_SECRET)
-                    SECRET_SMTP_USER: $(SMTP_USER)
-                    SECRET_SMTP_PASS: $(SMTP_PASS)
-                    SECRET_ADMIN_EMAIL: $(ADMIN_EMAIL)
-                    SECRET_ADMIN_PASSWORD: $(ADMIN_PASSWORD)
-                    SECRET_ADMIN_NAME: $(ADMIN_NAME)
-
-                # ── 5. Remove previous migration Job ────────────────────────
-                - bash: |
-                    set -euo pipefail
-                    kubectl -n "$(k8sNamespace)" delete job \
-                      ksgaal-activity-map-migrate \
-                      --ignore-not-found=true
-                  displayName: "Remove previous migration Job"
-
-                # ── 6. Apply migration Job ───────────────────────────────────
-                - bash: |
-                    set -euo pipefail
-                    kubectl apply -n "$(k8sNamespace)" \
-                      -f "$(Pipeline.Workspace)/k8s-manifests/base/migration-job.yaml"
-                  displayName: "Apply migration Job"
-
-                # ── 7. Wait for migration — pipeline fails if Job fails ──────
-                - bash: |
-                    set -euo pipefail
-                    if ! kubectl -n "$(k8sNamespace)" wait \
-                        --for=condition=complete \
-                        --timeout=600s \
-                        job/ksgaal-activity-map-migrate; then
-                      echo "##[error] Migration Job failed or timed out. Logs:"
-                      kubectl -n "$(k8sNamespace)" logs \
-                        job/ksgaal-activity-map-migrate --tail=500 || true
-                      exit 1
-                    fi
-                  displayName: "Wait for migration Job"
-
-                # ── 8. Apply Deployment (only after successful migration) ────
-                - bash: |
-                    set -euo pipefail
-                    kubectl apply -n "$(k8sNamespace)" \
-                      -f "$(Pipeline.Workspace)/k8s-manifests/base/deployment.yaml"
-                  displayName: "Apply Deployment"
-
-                # ── 9. Wait for rollout ──────────────────────────────────────
-                - bash: |
-                    set -euo pipefail
-                    kubectl -n "$(k8sNamespace)" rollout status \
-                      deployment/ksgaal-activity-map \
-                      --timeout=600s
                   displayName: "Wait for rollout"

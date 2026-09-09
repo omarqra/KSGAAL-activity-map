@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ksgaal-activity-map-config
+# Development overrides for the base ConfigMap.
+# The hostname below is a placeholder — the academy has not yet supplied the
+# development URL. Replace every dev.example.com before the first deploy.
+data:
+  APP_ENV: "dev"
+  SMTP_HOST: "smtp.example.com"
+  EMAIL_FROM: "KSGAAL Dev <no-reply@dev.example.com>"
+  APP_URL: "https://dev.example.com"
+  NEXT_PUBLIC_FRONTEND_URL: "https://dev.example.com"
+  NEXT_PUBLIC_BACKEND_URL: "https://dev.example.com"
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ""

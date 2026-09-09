@@ -3,14 +3,15 @@ kind: Ingress
 metadata:
   name: ksgaal-activity-map
 # Replaces the entire tls + rules block from the base Ingress.
-# Update example.com with the real production hostname.
+# dev.example.com and the TLS secret name are placeholders pending the
+# academy's development hostname and certificate.
 spec:
   tls:
     - hosts:
-        - example.com
-      secretName: ksgaal-production-tls
+        - dev.example.com
+      secretName: ksgaal-dev-tls
   rules:
-    - host: example.com
+    - host: dev.example.com
       http:
         paths:
           - path: /

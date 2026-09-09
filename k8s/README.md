@@ -1,7 +1,11 @@
 # Kubernetes manifests — `ksgaal-activity-map`
 
-Production-style manifests for deploying the Next.js app to a Kubernetes
-cluster (tested target: Azure AKS with the ingress-nginx controller).
+Manifests for deploying the Next.js app to the academy's internal Kubernetes
+cluster, reached through the `development-AATW` service connection.
+
+The pipeline's service account (`azdevops-dev`) has full rights **inside the
+`dev` namespace only** and none at cluster scope — so nothing here creates a
+Namespace, and `dev` is assumed to already exist.
 
 PostgreSQL is treated as **external / managed** (e.g. Azure Database for
 PostgreSQL Flexible Server). There are no in-cluster database resources here.
@@ -18,16 +22,10 @@ k8s/
 │   ├── deployment.yaml          # Applied by pipeline after migration, not by kustomize
 │   └── migration-job.yaml       # Applied by pipeline before deployment, not by kustomize
 ├── overlays/
-│   ├── staging/
-│   │   ├── kustomization.yaml
-│   │   ├── namespace.yaml       # ksgaal-staging
-│   │   ├── configmap-patch.yaml # Staging URLs, APP_ENV=staging
-│   │   └── ingress-patch.yaml   # staging.example.com, TLS secret ksgaal-staging-tls
-│   └── production/
-│       ├── kustomization.yaml
-│       ├── namespace.yaml       # ksgaal-production
-│       ├── configmap-patch.yaml # Production URLs, APP_ENV=prod
-│       └── ingress-patch.yaml   # example.com, TLS secret ksgaal-production-tls
+│   └── dev/
+│       ├── kustomization.yaml   # namespace: dev (no Namespace resource)
+│       ├── configmap-patch.yaml # Dev URLs, APP_ENV=dev
+│       └── ingress-patch.yaml   # dev.example.com, TLS secret ksgaal-dev-tls
 ├── secret.example.yaml          # Documentation template only — NOT applied by kustomize
 └── README.md
 ```
@@ -38,12 +36,16 @@ after namespace setup and after migrations complete — this enforces the correc
 ordering and lets the pipeline halt on migration failure before touching the
 running Deployment.
 
-## Namespaces
+## Namespace
 
-| Environment | Namespace          |
-|-------------|--------------------|
-| Staging     | `ksgaal-staging`   |
-| Production  | `ksgaal-production`|
+| Environment   | Namespace |
+|---------------|-----------|
+| `development` | `dev`     |
+
+`dev` is owned and created by the academy. The image reference in
+`deployment.yaml` and `migration-job.yaml` carries a `REGISTRY_HOST`
+placeholder that the pipeline substitutes — the registry itself is still
+unresolved, and `dev` currently holds no imagePullSecret.
 
 ## Required Secret
 
