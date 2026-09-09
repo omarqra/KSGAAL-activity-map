@@ -1,16 +1,16 @@
 # TEMPORARY probe pipeline — reports facts, deploys nothing. Delete after use.
 #
-# Round 1: Linux agent, Docker works, internet open, no Node.
-# Round 2: service account azdevops-dev has full rights in namespace `dev`;
-#          `dev` is empty and holds no imagePullSecret.
-# Round 3 (this file): find the internal container registry WITHOUT asking
-#          the academy. If this agent has ever built or deployed another of
-#          their projects, the registry host is recorded in Docker's own
-#          state — in pulled image tags, in the daemon config, or as a key
-#          in the credential store.
+# Round 4: can the CLUSTER pull from a public registry, or only from the
+# academy's own OCIR?
 #
-# Credentials are never printed: step 4 lists only the hostnames that appear
-# as keys in the Docker credential file, never the values beside them.
+# This decides whether we can ship without waiting for OCIR credentials. The
+# agent's image list hints the answer is no — every public image it holds
+# also exists retagged under jed.ocir.io/axzbw7rafu2r, which is the classic
+# shape of a cluster that can only pull from an internal registry. Hints are
+# not evidence, so we ask the cluster directly.
+#
+# Two throwaway pods, one per public registry. Both are deleted at the end
+# whatever happens; neither touches anything the app uses.
 
 trigger: none
 pr: none
@@ -21,24 +21,51 @@ pool:
 steps:
   - checkout: none
 
-  # Image tags carry their registry host, e.g. registry.ksaa.gov.sa/foo:1.
-  # Anything here that is not a plain Docker Hub name is a lead.
-  - script: docker images
-    displayName: "1. images already on this agent"
+  - task: Kubernetes@1
+    displayName: "0. cluster login"
+    inputs:
+      connectionType: Kubernetes Service Connection
+      kubernetesServiceEndpoint: development-AATW
+      namespace: dev
+      command: login
+
+  - bash: |
+      kubectl -n dev delete pod pull-test-hub pull-test-ghcr --ignore-not-found=true
+    displayName: "1. clean up any earlier attempt"
     continueOnError: true
 
-  # Reveals configured registry mirrors and insecure (internal) registries.
-  - script: docker info
-    displayName: "2. docker daemon info (mirrors, insecure registries)"
+  - bash: |
+      kubectl -n dev run pull-test-hub  --image=nginx:alpine --restart=Never
+      kubectl -n dev run pull-test-ghcr --image=ghcr.io/headlamp-k8s/headlamp:v0.30.0 --restart=Never
+    displayName: "2. start one pod per public registry"
     continueOnError: true
 
-  - script: cat /etc/docker/daemon.json
-    displayName: "3. docker daemon config"
+  # 90s is generous for a small image; a registry the cluster cannot reach
+  # sits in ImagePullBackOff long before that.
+  - bash: |
+      kubectl -n dev wait --for=condition=Ready pod/pull-test-hub --timeout=90s
+    displayName: "3. Docker Hub reachable from the cluster?"
     continueOnError: true
 
-  # Hostnames only. The values next to these keys are credentials and are
-  # deliberately not printed.
-  - script: |
-      grep -oE '"[A-Za-z0-9._-]+(:[0-9]+)?"[[:space:]]*:' ~/.docker/config.json
-    displayName: "4. registries this agent has logged into (names only)"
+  - bash: |
+      kubectl -n dev wait --for=condition=Ready pod/pull-test-ghcr --timeout=90s
+    displayName: "4. ghcr.io reachable from the cluster?"
+    continueOnError: true
+
+  # The real answer lives here: Events at the bottom name the exact failure
+  # (DNS, timeout, forbidden) rather than just "it did not start".
+  - bash: |
+      kubectl -n dev describe pod pull-test-hub
+    displayName: "5. why Docker Hub succeeded or failed"
+    continueOnError: true
+
+  - bash: |
+      kubectl -n dev describe pod pull-test-ghcr
+    displayName: "6. why ghcr.io succeeded or failed"
+    continueOnError: true
+
+  - bash: |
+      kubectl -n dev delete pod pull-test-hub pull-test-ghcr --ignore-not-found=true
+    displayName: "7. clean up"
+    condition: always()
     continueOnError: true
