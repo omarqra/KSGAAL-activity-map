@@ -40,7 +40,6 @@ import {
   usePathname as useIntlPathname,
   useRouter as useIntlRouter,
 } from "@/i18n/routing";
-import { cn } from "@/lib/utils";
 
 interface SearchablePage {
   labelKey: string;

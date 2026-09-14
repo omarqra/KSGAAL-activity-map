@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 "use client";
 
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";

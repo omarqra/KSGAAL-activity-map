@@ -22,7 +22,6 @@ function buildDashboardUrl(req: NextRequest, locale: string): URL {
 }
 
 function enforceHttps(req: NextRequest): NextResponse | null {
-  // eslint-disable-next-line n/no-process-env
   if (process.env.NODE_ENV !== "production") {
     return null;
   }

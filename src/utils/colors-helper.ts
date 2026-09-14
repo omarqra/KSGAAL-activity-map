@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 
 const hslToHex = (hsl: string): string => {
   if (!hsl || hsl.trim() === "") return "";

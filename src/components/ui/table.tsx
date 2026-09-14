@@ -469,6 +469,15 @@ export function Table<T extends Record<string, unknown>>({
                     key={col.key}
                     style={col.width ? { width: col.width } : undefined}
                     data-active={isActive ? "true" : undefined}
+                    aria-sort={
+                      col.sortable
+                        ? dir === "asc"
+                          ? "ascending"
+                          : dir === "desc"
+                            ? "descending"
+                            : "none"
+                        : undefined
+                    }
                     className={cn(
                       "sticky top-0 z-10",
                       ALIGN_CLASS[align],
@@ -485,13 +494,6 @@ export function Table<T extends Record<string, unknown>>({
                           align === "end" && "justify-end",
                           isActive ? "text-brand-green" : "text-aws-text2"
                         )}
-                        aria-sort={
-                          dir === "asc"
-                            ? "ascending"
-                            : dir === "desc"
-                              ? "descending"
-                              : "none"
-                        }
                       >
                         <span>{col.label}</span>
                         <SortIcon direction={dir ?? null} active={isActive} />

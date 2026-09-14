@@ -1,4 +1,3 @@
-/* eslint-disable n/no-process-env */
 import { execSync } from "child_process";
 import { config } from "dotenv";
 import { z } from "zod";

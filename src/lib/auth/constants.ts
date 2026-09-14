@@ -3,7 +3,6 @@ export const SESSION_COOKIE_NAME = "session";
 export const DEFAULT_SESSION_TTL_DAYS = 7;
 
 export function getSessionTtlSeconds(): number {
-  // eslint-disable-next-line n/no-process-env
   const days = Number(process.env.SESSION_TTL_DAYS ?? DEFAULT_SESSION_TTL_DAYS);
   return Math.max(1, Math.floor(days)) * 24 * 60 * 60;
 }

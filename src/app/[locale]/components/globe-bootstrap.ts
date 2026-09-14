@@ -1,4 +1,4 @@
-/* eslint-disable max-lines, @typescript-eslint/no-explicit-any, prefer-template */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * GlobeScene bootstrap — direct port of the imperative welcome + MapLibre
  * globe + activities-panel logic from html/test-globe.html. Kept as a single
@@ -1424,8 +1424,6 @@ export function bootstrapGlobeScene(
     const regionsCovered = Object.values(regDef).filter((codes) =>
       d.countries.some((c) => codes.includes(c.code)),
     ).length;
-
-    const pct = (n: number) => (total > 0 ? Math.round((n / total) * 100) : 0);
 
     type Card = {
       label: string;

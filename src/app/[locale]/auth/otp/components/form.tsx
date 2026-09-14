@@ -1,6 +1,5 @@
 /* eslint-disable react-hooks/immutability */
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable max-lines */
 "use client";
 
 import { useEffect, useState } from "react";

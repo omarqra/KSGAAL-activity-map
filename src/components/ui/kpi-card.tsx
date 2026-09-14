@@ -1,7 +1,6 @@
 import {
   type LucideIcon,
   Minus,
-  MoreHorizontal,
   TrendingDown,
   TrendingUp,
 } from "lucide-react";

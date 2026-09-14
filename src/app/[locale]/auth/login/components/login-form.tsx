@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/immutability */
-/* eslint-disable max-lines */
 "use client";
 
 import { useMemo, useState } from "react";

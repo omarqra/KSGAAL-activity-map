@@ -167,6 +167,19 @@ stages:
               npm run lint
             displayName: "npm run lint"
 
+          # Next generates the global route/page/layout types (LayoutProps,
+          # PageProps, ...) that `tsc` needs, and it normally does so as part
+          # of `next build` — which was removed above to save memory. `typegen`
+          # produces the same declarations without building: 0.8s and ~220 MB,
+          # which this agent can afford.
+          - bash: |
+              set -euo pipefail
+              npx next typegen
+            displayName: "next typegen"
+            env:
+              DATABASE_URL: "postgresql://x:x@localhost:5432/x"
+              JWT_SECRET: "ci-placeholder-not-used-at-runtime-32chars!"
+
           - bash: |
               set -euo pipefail
               npm run ts-check
