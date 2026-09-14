@@ -67,9 +67,18 @@ variables:
     value: "$(Build.BuildId)"
 
   # V8 heap ceiling for every Node process this pipeline starts, on the agent
-  # and inside the image build. Raise it only if the agent gets more RAM.
+  # and inside the image build.
+  #
+  # The diagnostic step measured the agent on 2026-09-14: 3.8 GiB total RAM,
+  # 2.2 GiB already held by the endpoint-security and patching daemons it runs
+  # for the academy, **1.3 GiB available**, and zero swap. The previous 2048
+  # ceiling was therefore above the machine's entire free memory and bought
+  # nothing. 1024 is what actually fits under 1.3 GiB with room for npm's own
+  # overhead. Raise this the moment the agent gets more RAM — `next build`
+  # wants far more than 1 GiB and the image build in Stage 2 will still not
+  # fit on this machine.
   - name: nodeHeapMb
-    value: "2048"
+    value: "1024"
 
   - group: aatw-dev
 
