@@ -218,13 +218,38 @@ stages:
       - job: Docker
         pool:
           name: Default
+        timeoutInMinutes: 60
         steps:
+          # Build BEFORE checking credentials, on purpose.
+          #
+          # `docker build` needs nothing from the academy, while login and push
+          # need the two values they have not supplied yet. Putting the build
+          # first means every run — credentials or not — answers the one
+          # question still open on our side: can an agent with 1.3 GiB of free
+          # RAM compile this app at all? A clean "JavaScript heap out of
+          # memory" or a 137 here is the measurement that turns the RAM
+          # request into a number instead of an opinion.
+          - bash: |
+              set -euo pipefail
+              IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository)"
+              docker build \
+                -f "$(dockerfilePath)" \
+                -t "$IMAGE:$(tag)" \
+                -t "$IMAGE:latest" \
+                --build-arg NODE_HEAP_MB="$(nodeHeapMb)" \
+                --build-arg NEXT_PUBLIC_FRONTEND_URL="$(NEXT_PUBLIC_FRONTEND_URL)" \
+                --build-arg NEXT_PUBLIC_BACKEND_URL="$(NEXT_PUBLIC_BACKEND_URL)" \
+                --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)" \
+                "$(Build.SourcesDirectory)"
+            displayName: "Build image"
+
           # Fail with a readable message rather than an opaque docker error
           # while the academy has not yet supplied credentials.
           - bash: |
               set -euo pipefail
               if [ -z "${OCIR_USERNAME:-}" ] || [ -z "${OCIR_TOKEN:-}" ]; then
-                echo "##[error] OCIR credentials are missing."
+                echo "##[error] The image built successfully, but it cannot be"
+                echo "##[error] pushed: OCIR credentials are missing."
                 echo "##[error] Set OCIR_USERNAME and OCIR_TOKEN (secret) in the"
                 echo "##[error] aatw-dev variable group under Pipelines > Library."
                 exit 1
@@ -247,20 +272,6 @@ stages:
           - bash: |
               set -euo pipefail
               IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository)"
-              docker build \
-                -f "$(dockerfilePath)" \
-                -t "$IMAGE:$(tag)" \
-                -t "$IMAGE:latest" \
-                --build-arg NODE_HEAP_MB="$(nodeHeapMb)" \
-                --build-arg NEXT_PUBLIC_FRONTEND_URL="$(NEXT_PUBLIC_FRONTEND_URL)" \
-                --build-arg NEXT_PUBLIC_BACKEND_URL="$(NEXT_PUBLIC_BACKEND_URL)" \
-                --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)" \
-                "$(Build.SourcesDirectory)"
-            displayName: "Build image"
-
-          - bash: |
-              set -euo pipefail
-              IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository)"
               docker push "$IMAGE:$(tag)"
               docker push "$IMAGE:latest"
             displayName: "Push image"
@@ -269,6 +280,16 @@ stages:
           # leave our credentials in its Docker config.
           - bash: docker logout "$(registryHost)"
             displayName: "Log out of OCIR"
+            condition: always()
+
+          # Same reason: the agent has 45 GiB free and each build of this app
+          # adds about a gigabyte. Drop only this build's own tags — never a
+          # blanket `docker image prune`, which would delete layers belonging
+          # to the academy's other projects on this machine.
+          - bash: |
+              IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository)"
+              docker image rm "$IMAGE:$(tag)" "$IMAGE:latest" 2>/dev/null || true
+            displayName: "Remove this build's local image tags"
             condition: always()
 
   # =========================================================================
