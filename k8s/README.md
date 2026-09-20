@@ -7,8 +7,12 @@ The pipeline's service account (`azdevops-dev`) has full rights **inside the
 `dev` namespace only** and none at cluster scope — so nothing here creates a
 Namespace, and `dev` is assumed to already exist.
 
-PostgreSQL is treated as **external / managed** (e.g. Azure Database for
-PostgreSQL Flexible Server). There are no in-cluster database resources here.
+PostgreSQL is treated as **external / managed** and supplied by the academy.
+There are no in-cluster database resources here.
+
+Note for anyone debugging a stuck pull: the cluster's nodes have **no outbound
+internet**. A probe run on 2026-09-09 had them time out reaching `ghcr.io`, so
+the academy's own registry is the only one they can pull from.
 
 ## Directory structure
 
@@ -46,15 +50,23 @@ running Deployment.
 
 ## Registry
 
-Images live in Oracle Cloud's registry in Jeddah:
-`jed.ocir.io/axzbw7rafu2r/ksgaal-activity-map`. The `REGISTRY_HOST` and
-`IMAGE_TAG` placeholders in `deployment.yaml` and `migration-job.yaml` are
-substituted by the pipeline at deploy time.
+Images live in Oracle Cloud's registry in Jeddah, in the repository the
+academy allocated on 2026-09-20:
 
-Those repositories are private, so both pod specs reference an
-`ocir-pull-secret`. The pipeline creates it in `dev` from the OCIR
-credentials in the `aatw-dev` variable group — it does not need to exist
-beforehand.
+```
+jed.ocir.io/axzbw7rafu2r/aatw/dev:<buildId>
+```
+
+Both pod specs carry the single placeholder `IMAGE_REF`, which the pipeline
+substitutes with that full reference at deploy time. It is one token rather
+than a host and a tag stitched together, because the repository name belongs
+to the academy and an earlier split version kept silently pointing at the old
+one after they renamed it.
+
+The repository is private, so both pod specs reference an `ocir-pull-secret`.
+The pipeline mints it in `dev` on every run from the `Docker_AATW` registry
+service connection, so it does not need to exist beforehand, and no registry
+username or token is stored in this repo or in a variable group.
 
 ## Required Secret
 
@@ -74,7 +86,7 @@ beforehand.
 ### Creating the Secret (safe — never put real values in a YAML file)
 
 ```bash
-NS=ksgaal-staging   # or ksgaal-production
+NS=dev
 
 kubectl -n "$NS" create secret generic ksgaal-activity-map-secrets \
   --from-literal=DATABASE_URL="$DATABASE_URL" \
@@ -95,14 +107,14 @@ real Secret manifest.
 `base/deployment.yaml` and `base/migration-job.yaml` both reference:
 
 ```
-ACR_LOGIN_SERVER/ksgaal-activity-map:IMAGE_TAG
+IMAGE_REF
 ```
 
-The Azure DevOps pipeline resolves these with `sed` before applying:
+The Azure DevOps pipeline resolves it with `sed` before applying:
 
 ```bash
-sed -i \
-  "s#ACR_LOGIN_SERVER#${ACR_LOGIN_SERVER}#g; s#IMAGE_TAG#${BUILD_BUILDID}#g" \
+IMAGE="jed.ocir.io/axzbw7rafu2r/aatw/dev:${BUILD_BUILDID}"
+sed -i "s#IMAGE_REF#${IMAGE}#g" \
   k8s/base/deployment.yaml k8s/base/migration-job.yaml
 ```
 
@@ -113,20 +125,19 @@ before migrations can cause runtime errors; skipping the migration wait can
 cause a half-migrated database to serve production traffic.
 
 ```bash
-OVERLAY=overlays/staging    # or overlays/production
-NS=ksgaal-staging           # or ksgaal-production
-IMG="myacr.azurecr.io/ksgaal-activity-map:1234"
+NS=dev
+IMG="jed.ocir.io/axzbw7rafu2r/aatw/dev:1234"
 
-# 1. Namespace (idempotent — kustomize includes namespace.yaml)
-kubectl apply -k "k8s/${OVERLAY}/"
+# 1. ConfigMap + Service + Ingress. The overlay deliberately contains no
+#    Namespace resource — the service account cannot create one, and `dev`
+#    already exists.
+kubectl apply -k "k8s/overlays/dev/"
 
 # 2. Create / update the Kubernetes Secret from env vars (never from a file)
 kubectl -n "$NS" create secret generic ksgaal-activity-map-secrets \
   --from-literal=DATABASE_URL="$DATABASE_URL" \
   ... \
   --dry-run=client -o yaml | kubectl apply -f -
-
-# 3. ConfigMap + Service + Ingress are applied by the kustomize step above.
 
 # 4. Delete any previous migration Job so re-runs are clean.
 kubectl -n "$NS" delete job ksgaal-activity-map-migrate --ignore-not-found=true
@@ -151,8 +162,7 @@ kubectl -n "$NS" rollout status deployment/ksgaal-activity-map --timeout=300s
 
 ```bash
 # Requires kubectl with kustomize support (kubectl v1.21+).
-kubectl kustomize k8s/overlays/staging
-kubectl kustomize k8s/overlays/production
+kubectl kustomize k8s/overlays/dev
 ```
 
 ## Smoke tests
@@ -160,8 +170,8 @@ kubectl kustomize k8s/overlays/production
 After deploy, verify through the Ingress:
 
 ```bash
-curl -fsSL https://staging.example.com/api/health/live
-curl -fsSL https://staging.example.com/api/health/ready
+curl -fsSL https://dev.example.com/api/health/live
+curl -fsSL https://dev.example.com/api/health/ready
 ```
 
 Both should return HTTP 200 with `"status": "ok"`. `/api/health/ready`
@@ -172,12 +182,12 @@ returns 503 if the database is unreachable.
 - `/api/admin/health` exists in the codebase but **requires a session cookie**
   and must not be used as a K8s probe. Probes use `/api/health/live` and
   `/api/health/ready`, which are unauthenticated.
-- TLS: each overlay's `ingress-patch.yaml` references a TLS secret
-  (`ksgaal-staging-tls` / `ksgaal-production-tls`). Provision via cert-manager
-  or load manually before the first deploy.
-- `replicas: 2` is the baseline in `base/deployment.yaml`; tune with HPA as
-  load warrants.
-- The Azure DevOps pipeline loads environment-specific secrets from variable
-  groups: `ksgaal-staging-secrets` and `ksgaal-production-secrets`. Variable
-  group names for shared non-secret config: `ksgaal-staging-shared` and
-  `ksgaal-production-shared`. Common pipeline vars: `ksgaal-common`.
+- TLS: `overlays/dev/ingress-patch.yaml` references the TLS secret
+  `ksgaal-dev-tls`. Both it and the host `dev.example.com` are placeholders
+  awaiting the academy's real development hostname and certificate.
+- `replicas: 2` is the baseline in `base/deployment.yaml`. An HPA is not an
+  option here: the service account cannot even list
+  `horizontalpodautoscalers`, so scaling stays manual.
+- The pipeline loads configuration and secrets from the single `aatw-dev`
+  variable group. Registry credentials are **not** among them — those live in
+  the `Docker_AATW` service connection.

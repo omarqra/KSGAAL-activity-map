@@ -1,5 +1,17 @@
 # Deployment — Kubernetes
 
+> **Superseded in part — read `k8s/README.md` first.**
+>
+> This document was written for the original design: Azure Kubernetes Service,
+> Azure Container Registry, and separate `staging` and `production`
+> environments. The academy's actual infrastructure turned out to be none of
+> those — one `development` environment in the namespace `dev`, Oracle's
+> registry in Jeddah, and a service account with no cluster-scope rights. The
+> sections below on the app's runtime requirements, health probes and database
+> handling still hold; the pipeline, registry and environment sections do not.
+> `k8s/README.md` and `azure-pipelines.yml` are the current source of truth.
+
+
 This document describes how `ksgaal-activity-map` is deployed to Kubernetes
 (target: Azure AKS with the ingress-nginx controller) and how Azure DevOps
 builds and ships the image.
@@ -128,7 +140,8 @@ flowchart LR
 Each deploy stage:
 
 1. Substitutes `ACR_LOGIN_SERVER` and `IMAGE_TAG` placeholders in
-   `k8s/deployment.yaml` and `k8s/migration-job.yaml`.
+   `k8s/base/deployment.yaml` and `k8s/base/migration-job.yaml`.
+   (Now a single `IMAGE_REF` placeholder — see `k8s/README.md`.)
 2. Creates/updates the Secret from Azure DevOps variable group
    (linked to Key Vault).
 3. Applies namespace + ConfigMap + Service + Ingress.

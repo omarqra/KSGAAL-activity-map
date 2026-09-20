@@ -15,22 +15,19 @@
 #   • The academy's registry is Oracle Cloud's OCIR in Jeddah,
 #     jed.ocir.io/axzbw7rafu2r — read off the images their other projects
 #     have pulled onto this same agent.
-#   • The agent holds no stored registry login, so this pipeline authenticates
-#     itself rather than relying on ambient credentials.
 #   • Only one environment exists: `development`.
 #
-# ┌─────────────────────────────────────────────────────────────────────────┐
-# │  STILL NEEDED FROM THE ACADEMY: an OCIR username and auth token, set as │
-# │  OCIR_USERNAME and OCIR_TOKEN (secret) in the `aatw-dev` variable group.│
-# │  Nothing else — no service connection, and no pre-created pull secret:  │
-# │  the pipeline logs in and provisions the pull secret in `dev` itself.   │
-# └─────────────────────────────────────────────────────────────────────────┘
+# Added 2026-09-20, from the academy: a Docker Registry service connection
+# `Docker_AATW`, and the repository `aatw/dev` to push into. That connection
+# holds the credentials, so this pipeline never sees a registry username or
+# token — Azure DevOps performs the login, and the same connection is handed
+# to the Kubernetes task to mint the cluster's imagePullSecret. The earlier
+# OCIR_USERNAME / OCIR_TOKEN variables are gone; do not reintroduce them.
 #
 # Variable group `aatw-dev` must be created in Library with:
 #   non-secret:  APP_URL, NEXT_PUBLIC_FRONTEND_URL, NEXT_PUBLIC_BACKEND_URL,
 #                NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-#   secret:      OCIR_USERNAME, OCIR_TOKEN,
-#                DATABASE_URL, JWT_SECRET, SMTP_USER, SMTP_PASS,
+#   secret:      DATABASE_URL, JWT_SECRET, SMTP_USER, SMTP_PASS,
 #                ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME
 #
 # NEXT_PUBLIC_* are baked into the client bundle at image build time.
@@ -53,13 +50,23 @@ variables:
     value: "dev"
 
   # Oracle Cloud Infrastructure Registry, Jeddah region.
-  # Full image path: jed.ocir.io/axzbw7rafu2r/ksgaal-activity-map:<buildId>
+  # Full image path: jed.ocir.io/axzbw7rafu2r/aatw/dev:<buildId>
+  #
+  # `aatw/dev` is the repository the academy allocated on 2026-09-20. OCIR
+  # repository names may contain slashes, so this is one repository, not a
+  # namespace plus a repository — every build lands here and is told apart by
+  # its tag.
   - name: registryHost
     value: "jed.ocir.io"
   - name: registryNamespace
     value: "axzbw7rafu2r"
   - name: imageRepository
-    value: "ksgaal-activity-map"
+    value: "aatw/dev"
+
+  # Docker Registry service connection. It carries the credentials, which is
+  # why none appear anywhere in this file.
+  - name: dockerRegistryServiceConnection
+    value: "Docker_AATW"
 
   - name: dockerfilePath
     value: "Dockerfile"
@@ -220,15 +227,14 @@ stages:
           name: Default
         timeoutInMinutes: 60
         steps:
-          # Build BEFORE checking credentials, on purpose.
+          # Build before logging in, on purpose.
           #
-          # `docker build` needs nothing from the academy, while login and push
-          # need the two values they have not supplied yet. Putting the build
-          # first means every run — credentials or not — answers the one
-          # question still open on our side: can an agent with 1.3 GiB of free
-          # RAM compile this app at all? A clean "JavaScript heap out of
-          # memory" or a 137 here is the measurement that turns the RAM
-          # request into a number instead of an opinion.
+          # `docker build` touches no registry, so putting it first means the
+          # run reaches the one question still open on our side even if the
+          # registry is unreachable: can an agent with 1.3 GiB of free RAM
+          # compile this app at all? A clean "JavaScript heap out of memory"
+          # or a 137 here is the measurement that turns the RAM request into a
+          # number instead of an opinion.
           - bash: |
               set -euo pipefail
               IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository)"
@@ -243,31 +249,14 @@ stages:
                 "$(Build.SourcesDirectory)"
             displayName: "Build image"
 
-          # Fail with a readable message rather than an opaque docker error
-          # while the academy has not yet supplied credentials.
-          - bash: |
-              set -euo pipefail
-              if [ -z "${OCIR_USERNAME:-}" ] || [ -z "${OCIR_TOKEN:-}" ]; then
-                echo "##[error] The image built successfully, but it cannot be"
-                echo "##[error] pushed: OCIR credentials are missing."
-                echo "##[error] Set OCIR_USERNAME and OCIR_TOKEN (secret) in the"
-                echo "##[error] aatw-dev variable group under Pipelines > Library."
-                exit 1
-              fi
-            displayName: "Check OCIR credentials are set"
-            env:
-              OCIR_USERNAME: $(OCIR_USERNAME)
-              OCIR_TOKEN: $(OCIR_TOKEN)
-
-          # --password-stdin keeps the token out of the process list.
-          - bash: |
-              set -euo pipefail
-              printf '%s' "$OCIR_TOKEN" \
-                | docker login "$(registryHost)" -u "$OCIR_USERNAME" --password-stdin
-            displayName: "Log in to OCIR"
-            env:
-              OCIR_USERNAME: $(OCIR_USERNAME)
-              OCIR_TOKEN: $(OCIR_TOKEN)
+          # Azure DevOps reads the credentials out of the service connection
+          # and runs `docker login` itself, so no secret is ever materialised
+          # as a pipeline variable or passed through a shell.
+          - task: Docker@2
+            displayName: "Log in to the registry"
+            inputs:
+              command: login
+              containerRegistry: $(dockerRegistryServiceConnection)
 
           - bash: |
               set -euo pipefail
@@ -324,28 +313,32 @@ stages:
                 - bash: |
                     set -euo pipefail
                     BASE="$(Build.SourcesDirectory)/k8s/base"
+                    IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository):$(tag)"
+                    echo "Deploying image: $IMAGE"
                     sed -i \
-                      -e "s#REGISTRY_HOST#$(registryHost)/$(registryNamespace)#g" \
-                      -e "s#IMAGE_TAG#$(tag)#g" \
+                      -e "s#IMAGE_REF#$IMAGE#g" \
                       "$BASE/deployment.yaml" \
                       "$BASE/migration-job.yaml"
                   displayName: "Substitute image placeholders"
 
-                # OCIR repositories are private, so the cluster needs its own
-                # credentials to pull. We hold create rights on secrets in
-                # `dev`, so the pipeline provisions this itself.
-                - bash: |
-                    set -euo pipefail
-                    kubectl -n "$(k8sNamespace)" create secret docker-registry \
-                      ocir-pull-secret \
-                      --docker-server="$(registryHost)" \
-                      --docker-username="$OCIR_USERNAME" \
-                      --docker-password="$OCIR_TOKEN" \
-                      --dry-run=client -o yaml | kubectl apply -f -
+                # OCIR repositories are private, so the cluster needs its
+                # own credentials to pull. The Kubernetes task builds the
+                # dockerconfigjson from the Docker_AATW service connection, so
+                # the token never passes through this pipeline's shell or its
+                # variables. `forceUpdate` rewrites the secret every run, which
+                # keeps it correct if the academy ever rotates the credential.
+                - task: Kubernetes@1
                   displayName: "Create/update image pull secret"
-                  env:
-                    OCIR_USERNAME: $(OCIR_USERNAME)
-                    OCIR_TOKEN: $(OCIR_TOKEN)
+                  inputs:
+                    connectionType: Kubernetes Service Connection
+                    kubernetesServiceEndpoint: $(kubernetesServiceConnection)
+                    namespace: $(k8sNamespace)
+                    secretType: dockerRegistry
+                    containerRegistryType: Container Registry
+                    dockerRegistryEndpoint: $(dockerRegistryServiceConnection)
+                    secretName: ocir-pull-secret
+                    forceUpdate: true
+                    command: login
 
                 # ConfigMap, Service, Ingress. The overlay contains no
                 # Namespace resource — the token cannot create one, and `dev`

@@ -29,8 +29,11 @@ spec:
         fsGroup: 1001
       containers:
         - name: migrate
-          # Placeholder replaced by sed in the pipeline before apply.
-          image: REGISTRY_HOST/ksgaal-activity-map:IMAGE_TAG
+          # Placeholder replaced by sed in the pipeline before apply. The
+          # whole reference is one token on purpose: the repository name is
+          # the academy's to choose, and hardcoding it here once meant these
+          # manifests silently kept pointing at the old one.
+          image: IMAGE_REF
           imagePullPolicy: IfNotPresent
           command: ["npx", "prisma", "migrate", "deploy"]
           envFrom:
