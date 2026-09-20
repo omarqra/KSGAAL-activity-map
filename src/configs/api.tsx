@@ -4,7 +4,8 @@ import { env } from "@/env/client";
 import { Apis } from "@/types/apis-types";
 import { handleError } from "@/utils/error-handler/index";
 
-export const ClientPublic = env.NEXT_PUBLIC_FRONTEND_URL;
+export const ClientPublic = env.NEXT_PUBLIC_FRONTEND_URL ?? "";
+// Relative by default: requests go to the origin the page was served from.
 export const BaseUrl = env.NEXT_PUBLIC_BACKEND_URL;
 export const ApiBaseUrl = BaseUrl;
 export const ImageBaseUrl = `${BaseUrl}/public`;

@@ -2,8 +2,21 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ksgaal-activity-map-config
-# The only genuinely per-environment value that is not a setting someone
-# tunes: which environment this is. Everything else comes from the aatw-dev
-# variable group by way of the Secret.
+# Development overrides for the base ConfigMap.
+#
+# NEXT_PUBLIC_* are intentionally empty: the browser now calls the origin it
+# loaded the page from, and server components call loopback, so this image
+# needs no hostname baked in and works unchanged behind the temporary node
+# port and, later, the real ingress.
+#
+# APP_URL is different — it goes into emails, which are read outside the
+# cluster and need an absolute address. It stays a placeholder until the
+# academy supplies the development hostname.
 data:
   APP_ENV: "dev"
+  SMTP_HOST: "smtp.example.com"
+  EMAIL_FROM: "KSGAAL Dev <no-reply@dev.example.com>"
+  APP_URL: "https://dev.example.com"
+  NEXT_PUBLIC_FRONTEND_URL: ""
+  NEXT_PUBLIC_BACKEND_URL: ""
+  NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: ""

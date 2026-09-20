@@ -31,13 +31,20 @@ export const metadata: Metadata = {
     default: "Dashboard",
     template: "%s | Dashboard",
   },
-  alternates: {
-    canonical: env.NEXT_PUBLIC_FRONTEND_URL,
-    languages: {
-      en: `${env.NEXT_PUBLIC_FRONTEND_URL}/en`,
-      ar: `${env.NEXT_PUBLIC_FRONTEND_URL}/ar`,
-    },
-  },
+  // Canonical links need an absolute, publicly resolvable URL. Until the
+  // academy supplies one there is nothing honest to point at, so omit the
+  // block rather than emit links to a placeholder host.
+  ...(env.NEXT_PUBLIC_FRONTEND_URL
+    ? {
+        alternates: {
+          canonical: env.NEXT_PUBLIC_FRONTEND_URL,
+          languages: {
+            en: `${env.NEXT_PUBLIC_FRONTEND_URL}/en`,
+            ar: `${env.NEXT_PUBLIC_FRONTEND_URL}/ar`,
+          },
+        },
+      }
+    : {}),
   description: "Dashboard",
 };
 

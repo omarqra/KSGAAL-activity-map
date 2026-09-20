@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 
-import { env } from "@/env/client";
+import { internalBaseUrl } from "@/lib/internal-url";
 
 import type { ApiActivity } from "../activities/_lib/api";
 
@@ -59,7 +59,7 @@ interface ApiEnvelope<T> {
 }
 
 async function fetchEnvelope<T>(path: string): Promise<T> {
-  const url = `${env.NEXT_PUBLIC_FRONTEND_URL}${path}`;
+  const url = `${internalBaseUrl()}${path}`;
   const cookieHeader = (await cookies()).toString();
   const res = await fetch(url, {
     cache: "no-store",

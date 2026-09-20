@@ -1,4 +1,4 @@
-import { env } from "@/env/client";
+import { internalBaseUrl } from "@/lib/internal-url";
 import { serverFetch } from "@/lib/server-fetch";
 
 export interface ReportSummary {
@@ -11,7 +11,7 @@ interface ApiEnvelope<T> {
 }
 
 async function fetchEnvelope<T>(path: string): Promise<T> {
-  const url = `${env.NEXT_PUBLIC_FRONTEND_URL}${path}`;
+  const url = `${internalBaseUrl()}${path}`;
   const res = await serverFetch(url);
   const json = (await res.json()) as ApiEnvelope<T>;
   if (json.error || !json.data) {

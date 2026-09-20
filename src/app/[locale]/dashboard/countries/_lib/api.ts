@@ -1,4 +1,4 @@
-import { env } from "@/env/client";
+import { internalBaseUrl } from "@/lib/internal-url";
 import { serverFetch } from "@/lib/server-fetch";
 
 export interface CountryRow {
@@ -40,7 +40,7 @@ interface ApiEnvelope<T> {
 }
 
 function apiBase(): string {
-  return env.NEXT_PUBLIC_FRONTEND_URL.replace(/\/+$/, "");
+  return internalBaseUrl();
 }
 
 async function unwrap<T>(res: Response): Promise<T> {

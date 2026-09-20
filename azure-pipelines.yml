@@ -476,21 +476,43 @@ stages:
                 # new one can be applied.
                 - bash: |
                     set -euo pipefail
+                    if [ -z "${SECRET_DATABASE_URL:-}" ]; then
+                      echo "No DATABASE_URL configured — skipping migrations."
+                      echo "The app deploys in degraded mode: the public globe"
+                      echo "serves empty and the admin screens report the gap."
+                      exit 0
+                    fi
                     kubectl -n "$(k8sNamespace)" delete job \
                       ksgaal-activity-map-migrate \
                       --ignore-not-found=true
                   displayName: "Remove previous migration Job"
+                  env:
+                    SECRET_DATABASE_URL: $(DATABASE_URL)
 
                 - bash: |
                     set -euo pipefail
+                    if [ -z "${SECRET_DATABASE_URL:-}" ]; then
+                      echo "No DATABASE_URL configured — skipping migrations."
+                      echo "The app deploys in degraded mode: the public globe"
+                      echo "serves empty and the admin screens report the gap."
+                      exit 0
+                    fi
                     kubectl apply -n "$(k8sNamespace)" \
                       -f "$(Build.SourcesDirectory)/k8s/base/migration-job.yaml"
                   displayName: "Apply migration Job"
+                  env:
+                    SECRET_DATABASE_URL: $(DATABASE_URL)
 
                 # Migrations must succeed before the Deployment is touched,
                 # otherwise new pods would start against an old schema.
                 - bash: |
                     set -euo pipefail
+                    if [ -z "${SECRET_DATABASE_URL:-}" ]; then
+                      echo "No DATABASE_URL configured — skipping migrations."
+                      echo "The app deploys in degraded mode: the public globe"
+                      echo "serves empty and the admin screens report the gap."
+                      exit 0
+                    fi
                     if ! kubectl -n "$(k8sNamespace)" wait \
                         --for=condition=complete \
                         --timeout=300s \
@@ -501,6 +523,8 @@ stages:
                       exit 1
                     fi
                   displayName: "Wait for migration Job"
+                  env:
+                    SECRET_DATABASE_URL: $(DATABASE_URL)
 
                 - bash: |
                     set -euo pipefail

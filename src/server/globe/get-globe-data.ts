@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 
-import { prisma } from "@/lib/prisma";
+import { isDatabaseConfigured, prisma } from "@/lib/prisma";
 
 import type {
   GlobeActivity,
@@ -101,7 +101,19 @@ const toOrganizationEntity = (o: OrganizationRow): GlobeEntity => ({
   activities: o.activities.map(toGlobeActivity),
 });
 
+/* Shown when this deployment has no database. The globe still renders — it
+   simply has no pins — which keeps the app demonstrable while the academy
+   provisions one, instead of the whole public page throwing. */
+const EMPTY_GLOBE_DATA: GlobeData = {
+  activityTypes: {},
+  countries: [],
+  organizations: [],
+  stats: { totalActivities: 0, byType: [] },
+};
+
 async function fetchGlobeData(): Promise<GlobeData> {
+  if (!isDatabaseConfigured()) return EMPTY_GLOBE_DATA;
+
   const [countries, organizations, activityTypes] = await Promise.all([
     prisma.country.findMany({
       where: { status: "active" },
