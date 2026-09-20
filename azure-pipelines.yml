@@ -68,6 +68,13 @@ variables:
   - name: dockerRegistryServiceConnection
     value: "Docker_AATW"
 
+  # Temporary: expose the app on a node port so it can be opened from a
+  # browser inside the academy's network before they supply a hostname and
+  # certificate for the Ingress. Set to "false" and delete the Service once
+  # the Ingress routes — see k8s/overlays/dev/nodeport-service.yaml.
+  - name: exposeNodePort
+    value: "true"
+
   - name: dockerfilePath
     value: "Dockerfile"
   - name: tag
@@ -452,3 +459,38 @@ stages:
                     echo "supplies the real development hostname and certificate."
                   displayName: "Report how the app is exposed"
                   condition: always()
+
+                # The node addresses come from our own pods' `status.hostIP`,
+                # not from `kubectl get nodes` — Node is a cluster-scoped
+                # resource this service account cannot read, but a Pod in `dev`
+                # carries the address of the machine running it.
+                - bash: |
+                    set -euo pipefail
+                    if [ "$(exposeNodePort)" != "true" ]; then
+                      echo "exposeNodePort is off — skipping."
+                      exit 0
+                    fi
+
+                    kubectl apply -n "$(k8sNamespace)" \
+                      -f "$(Build.SourcesDirectory)/k8s/overlays/dev/nodeport-service.yaml"
+
+                    PORT=$(kubectl -n "$(k8sNamespace)" get svc \
+                      ksgaal-activity-map-nodeport \
+                      -o jsonpath='{.spec.ports[0].nodePort}')
+
+                    IPS=$(kubectl -n "$(k8sNamespace)" get pods \
+                      -l app=ksgaal-activity-map \
+                      -o jsonpath='{range .items[*]}{.status.hostIP}{"\n"}{end}' \
+                      | sort -u | grep -v '^$')
+
+                    echo
+                    echo "=================================================="
+                    echo " Open the app from inside the academy's network:"
+                    for ip in $IPS; do
+                      echo "   http://$ip:$PORT"
+                    done
+                    echo
+                    echo " Plain HTTP, temporary, internal only. Retire this"
+                    echo " once the Ingress has a real hostname."
+                    echo "=================================================="
+                  displayName: "Expose on a node port and print the URL"

@@ -68,6 +68,29 @@ The pipeline mints it in `dev` on every run from the `Docker_AATW` registry
 service connection, so it does not need to exist beforehand, and no registry
 username or token is stored in this repo or in a variable group.
 
+## Reaching the app
+
+The Ingress cannot route yet — its host (`dev.example.com`) and TLS secret
+(`ksgaal-dev-tls`) are placeholders standing in for values the academy has not
+supplied, and the normal Service is ClusterIP.
+
+As a stopgap the pipeline applies `overlays/dev/nodeport-service.yaml` while
+the `exposeNodePort` variable is `true`, and prints
+`http://<node-ip>:<port>` at the end of the deploy. That address works from
+anywhere inside the academy's network, over plain HTTP, with no DNS and no
+certificate.
+
+The node addresses are read from our own pods' `status.hostIP`. `kubectl get
+nodes` is not an option: Node is cluster-scoped and this service account has
+no rights there.
+
+To retire it once the Ingress works:
+
+```bash
+# set exposeNodePort to "false" in azure-pipelines.yml, then:
+kubectl -n dev delete svc ksgaal-activity-map-nodeport
+```
+
 ## Required Secret
 
 `deployment.yaml` and `migration-job.yaml` pull `envFrom` a Secret named

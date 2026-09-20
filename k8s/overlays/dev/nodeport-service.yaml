@@ -1,0 +1,36 @@
+# TEMPORARY — a way in before the academy supplies a hostname.
+#
+# The Ingress cannot route yet: its host is a placeholder and its TLS secret
+# does not exist. This Service exposes the same pods on a high port of every
+# cluster node, so the app is reachable at http://<node-ip>:<port> from
+# anywhere inside the academy's network — no DNS, no certificate.
+#
+# Deliberately NOT listed in this overlay's kustomization.yaml. The pipeline
+# applies it only while `exposeNodePort` is true, so switching that variable
+# off and running `kubectl -n dev delete svc ksgaal-activity-map-nodeport`
+# removes the exposure completely and leaves the normal ClusterIP Service and
+# the Ingress untouched.
+#
+# Two things to be honest about:
+#   • This is plain HTTP on an internal network. Do not put real data behind
+#     it, and retire it once the Ingress works.
+#   • nodePort is left unassigned on purpose. Pinning a number risks colliding
+#     with another team's service on this shared cluster; Kubernetes picks a
+#     free one and the pipeline reads it back.
+apiVersion: v1
+kind: Service
+metadata:
+  name: ksgaal-activity-map-nodeport
+  labels:
+    app.kubernetes.io/name: ksgaal-activity-map
+    app.kubernetes.io/part-of: ksgaal-activity-map
+    app.kubernetes.io/component: temporary-access
+spec:
+  type: NodePort
+  selector:
+    app: ksgaal-activity-map
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 3000
