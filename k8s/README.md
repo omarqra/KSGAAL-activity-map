@@ -91,36 +91,44 @@ To retire it once the Ingress works:
 kubectl -n dev delete svc ksgaal-activity-map-nodeport
 ```
 
-## Required Secret
+## Configuration — there is no `.env` here
 
-`deployment.yaml` and `migration-job.yaml` pull `envFrom` a Secret named
-`ksgaal-activity-map-secrets` in the target namespace. It must contain:
+Nothing in this deployment reads a `.env` file. Configuration splits in two,
+by whether it varies between environments:
 
-| Key               | Description                                  |
-|-------------------|----------------------------------------------|
-| `DATABASE_URL`    | `postgresql://user:pass@host:5432/db`        |
-| `JWT_SECRET`      | ≥32-char random string                       |
-| `SMTP_USER`       | SMTP auth username                           |
-| `SMTP_PASS`       | SMTP auth password / app password            |
-| `ADMIN_EMAIL`     | Seed admin email (first deploy only)         |
-| `ADMIN_PASSWORD`  | Seed admin password (first deploy only)      |
-| `ADMIN_NAME`      | Seed admin display name (first deploy only)  |
+| Where | What | Who edits it |
+|---|---|---|
+| `base/configmap.yaml` | Static: `NODE_ENV`, `PORT`, `SESSION_TTL_DAYS`, `SMTP_PORT`, `SMTP_SECURE` | committed to this repo |
+| `aatw-dev` variable group | Everything environment-specific, secret or not | Pipelines > Library |
 
-### Creating the Secret (safe — never put real values in a YAML file)
+The pipeline turns the whole variable group into one Secret,
+`ksgaal-activity-map-secrets`, which both pod specs read with `envFrom`.
 
-```bash
-NS=dev
+Non-secret values such as `APP_URL` and the `NEXT_PUBLIC_*` URLs live in that
+Secret rather than in the ConfigMap. That is deliberate. They used to sit in
+both places, and a value updated in one and forgotten in the other is exactly
+how the browser ends up calling a hostname the server has never heard of. One
+place to set an environment is worth more than a tidier split.
 
-kubectl -n "$NS" create secret generic ksgaal-activity-map-secrets \
-  --from-literal=DATABASE_URL="$DATABASE_URL" \
-  --from-literal=JWT_SECRET="$JWT_SECRET" \
-  --from-literal=SMTP_USER="$SMTP_USER" \
-  --from-literal=SMTP_PASS="$SMTP_PASS" \
-  --from-literal=ADMIN_EMAIL="$ADMIN_EMAIL" \
-  --from-literal=ADMIN_PASSWORD="$ADMIN_PASSWORD" \
-  --from-literal=ADMIN_NAME="$ADMIN_NAME" \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
+### Required — the deploy stops with a readable error if any is empty
+
+| Key | Notes |
+|---|---|
+| `DATABASE_URL` | `postgres://user:pass@host:5432/db` |
+| `JWT_SECRET` | ≥32 random characters — mark secret |
+| `APP_URL` | absolute; used for links in emails |
+| `NEXT_PUBLIC_FRONTEND_URL` | absolute; the browser calls this |
+| `NEXT_PUBLIC_BACKEND_URL` | absolute |
+
+### Optional — the app falls back to a default or skips the feature
+
+`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`,
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`,
+`ADMIN_NAME`. Mark the two SMTP credentials and the admin password secret.
+
+The `NEXT_PUBLIC_*` values are read twice: baked into the browser bundle when
+the image is built, and read again by the server at runtime. Changing one of
+those URLs therefore needs a rebuild, not just a redeploy.
 
 `secret.example.yaml` is **only a documentation template** — do not commit a
 real Secret manifest.

@@ -24,11 +24,27 @@
 # to the Kubernetes task to mint the cluster's imagePullSecret. The earlier
 # OCIR_USERNAME / OCIR_TOKEN variables are gone; do not reintroduce them.
 #
-# Variable group `aatw-dev` must be created in Library with:
-#   non-secret:  APP_URL, NEXT_PUBLIC_FRONTEND_URL, NEXT_PUBLIC_BACKEND_URL,
-#                NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-#   secret:      DATABASE_URL, JWT_SECRET, SMTP_USER, SMTP_PASS,
-#                ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME
+# There is no .env anywhere in this deployment. Every environment-specific
+# value is set once, in the `aatw-dev` variable group under Pipelines >
+# Library, and the pipeline turns the whole set into one Kubernetes Secret.
+# Static config that never varies by environment stays in k8s/base/configmap.yaml.
+#
+#   required — the deploy stops with a readable error if any is empty:
+#     DATABASE_URL              postgres://user:pass@host:5432/db
+#     JWT_SECRET                >= 32 random characters       [mark secret]
+#     APP_URL                   absolute; used for links in emails
+#     NEXT_PUBLIC_FRONTEND_URL  absolute; the browser calls this
+#     NEXT_PUBLIC_BACKEND_URL   absolute
+#
+#   optional — the app falls back to its own defaults, or skips the feature:
+#     SMTP_HOST, SMTP_USER, SMTP_PASS  [mark the last two secret]
+#     EMAIL_FROM
+#     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+#     ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME   [mark the password secret]
+#
+# The NEXT_PUBLIC_* values are read twice: baked into the browser bundle when
+# the image is built, and read again by the server at runtime. Both come from
+# the same variable, so changing a URL means a rebuild, not just a redeploy.
 #
 # NEXT_PUBLIC_* are baked into the client bundle at image build time.
 # ---------------------------------------------------------------------------
@@ -239,22 +255,58 @@ stages:
           # `docker build` touches no registry, so putting it first means the
           # run reaches the one question still open on our side even if the
           # registry is unreachable: can an agent with 1.3 GiB of free RAM
-          # compile this app at all? A clean "JavaScript heap out of memory"
-          # or a 137 here is the measurement that turns the RAM request into a
-          # number instead of an opinion.
+          # compile this app at all? Run #20260920 answered it — the build got
+          # as far as "Collecting page data", so the memory is sufficient.
+          #
+          # The NEXT_PUBLIC_* values arrive through `env:` rather than inline
+          # $(...) for a reason that cost a 20-minute build: when a variable is
+          # not defined in the group, Azure DevOps leaves the literal text
+          # `$(NAME)` behind, bash reads that as a command substitution, the
+          # command does not exist, and the build-arg is passed as an empty
+          # string — which *overrides* the Dockerfile's default instead of
+          # falling back to it. `next build` then failed on "Invalid URL" deep
+          # into the run. Read them as environment variables, check them, and
+          # only pass the ones that actually have a value.
           - bash: |
               set -euo pipefail
               IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository)"
+
+              ARGS=()
+              warn=""
+              add_public() {
+                local name="$1" value="$2"
+                case "$value" in
+                  ""|'$('*')')
+                    warn="$warn $name"
+                    ;;
+                  *)
+                    ARGS+=(--build-arg "$name=$value")
+                    ;;
+                esac
+              }
+
+              add_public NEXT_PUBLIC_FRONTEND_URL "${V_FRONTEND_URL:-}"
+              add_public NEXT_PUBLIC_BACKEND_URL "${V_BACKEND_URL:-}"
+              add_public NEXT_PUBLIC_GOOGLE_MAPS_API_KEY "${V_MAPS_KEY:-}"
+
+              if [ -n "$warn" ]; then
+                echo "##vso[task.logissue type=warning]Not set in the aatw-dev variable group:$warn"
+                echo "##vso[task.logissue type=warning]Falling back to the Dockerfile defaults so the build can complete."
+                echo "##vso[task.logissue type=warning]The browser bundle bakes these in, so set them and rebuild before anyone uses this image."
+              fi
+
               docker build \
                 -f "$(dockerfilePath)" \
                 -t "$IMAGE:$(tag)" \
                 -t "$IMAGE:latest" \
                 --build-arg NODE_HEAP_MB="$(nodeHeapMb)" \
-                --build-arg NEXT_PUBLIC_FRONTEND_URL="$(NEXT_PUBLIC_FRONTEND_URL)" \
-                --build-arg NEXT_PUBLIC_BACKEND_URL="$(NEXT_PUBLIC_BACKEND_URL)" \
-                --build-arg NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)" \
+                "${ARGS[@]+"${ARGS[@]}"}" \
                 "$(Build.SourcesDirectory)"
             displayName: "Build image"
+            env:
+              V_FRONTEND_URL: $(NEXT_PUBLIC_FRONTEND_URL)
+              V_BACKEND_URL: $(NEXT_PUBLIC_BACKEND_URL)
+              V_MAPS_KEY: $(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
 
           # Azure DevOps reads the credentials out of the service connection
           # and runs `docker login` itself, so no secret is ever materialised
@@ -356,17 +408,50 @@ stages:
                       "$(Build.SourcesDirectory)/k8s/overlays/dev/"
                   displayName: "Apply ConfigMap, Service, Ingress"
 
-                # Secret values come from the aatw-dev group. They are passed
-                # through the shell environment only — never written to a file
-                # and never echoed; Azure DevOps masks secret variables in logs.
+                # Every environment-specific value — secret or not — comes
+                # from the aatw-dev variable group and lands in this one
+                # Secret. Non-secret keys (APP_URL, SMTP_HOST, EMAIL_FROM,
+                # NEXT_PUBLIC_*) sit here rather than in the ConfigMap on
+                # purpose: they used to live in both, and a value set in one
+                # and forgotten in the other is how the browser ends up
+                # calling a hostname the server has never heard of. One place
+                # to set an environment beats a tidier split.
+                #
+                # Values are passed through the shell environment only — never
+                # written to a file, never echoed. Azure DevOps masks secret
+                # variables in logs.
                 - bash: |
                     set -euo pipefail
+
+                    missing=""
+                    for v in DATABASE_URL JWT_SECRET APP_URL \
+                             NEXT_PUBLIC_FRONTEND_URL NEXT_PUBLIC_BACKEND_URL; do
+                      name="SECRET_$v"
+                      if [ -z "${!name:-}" ]; then
+                        missing="$missing $v"
+                      fi
+                    done
+                    if [ -n "$missing" ]; then
+                      echo "##[error] The image is built and pushed, but the app"
+                      echo "##[error] cannot start without these values:"
+                      for v in $missing; do echo "##[error]   - $v"; done
+                      echo "##[error] Set them in the aatw-dev variable group"
+                      echo "##[error] under Pipelines > Library."
+                      exit 1
+                    fi
+
                     kubectl -n "$(k8sNamespace)" create secret generic \
                       ksgaal-activity-map-secrets \
                       --from-literal=DATABASE_URL="$SECRET_DATABASE_URL" \
                       --from-literal=JWT_SECRET="$SECRET_JWT_SECRET" \
+                      --from-literal=APP_URL="$SECRET_APP_URL" \
+                      --from-literal=SMTP_HOST="$SECRET_SMTP_HOST" \
                       --from-literal=SMTP_USER="$SECRET_SMTP_USER" \
                       --from-literal=SMTP_PASS="$SECRET_SMTP_PASS" \
+                      --from-literal=EMAIL_FROM="$SECRET_EMAIL_FROM" \
+                      --from-literal=NEXT_PUBLIC_FRONTEND_URL="$SECRET_NEXT_PUBLIC_FRONTEND_URL" \
+                      --from-literal=NEXT_PUBLIC_BACKEND_URL="$SECRET_NEXT_PUBLIC_BACKEND_URL" \
+                      --from-literal=NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$SECRET_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY" \
                       --from-literal=ADMIN_EMAIL="$SECRET_ADMIN_EMAIL" \
                       --from-literal=ADMIN_PASSWORD="$SECRET_ADMIN_PASSWORD" \
                       --from-literal=ADMIN_NAME="$SECRET_ADMIN_NAME" \
@@ -375,8 +460,14 @@ stages:
                   env:
                     SECRET_DATABASE_URL: $(DATABASE_URL)
                     SECRET_JWT_SECRET: $(JWT_SECRET)
+                    SECRET_APP_URL: $(APP_URL)
+                    SECRET_SMTP_HOST: $(SMTP_HOST)
                     SECRET_SMTP_USER: $(SMTP_USER)
                     SECRET_SMTP_PASS: $(SMTP_PASS)
+                    SECRET_EMAIL_FROM: $(EMAIL_FROM)
+                    SECRET_NEXT_PUBLIC_FRONTEND_URL: $(NEXT_PUBLIC_FRONTEND_URL)
+                    SECRET_NEXT_PUBLIC_BACKEND_URL: $(NEXT_PUBLIC_BACKEND_URL)
+                    SECRET_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: $(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
                     SECRET_ADMIN_EMAIL: $(ADMIN_EMAIL)
                     SECRET_ADMIN_PASSWORD: $(ADMIN_PASSWORD)
                     SECRET_ADMIN_NAME: $(ADMIN_NAME)
