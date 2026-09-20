@@ -416,3 +416,39 @@ stages:
                       deployment/ksgaal-activity-map \
                       --timeout=300s
                   displayName: "Wait for rollout"
+
+                # `rollout status` only proves the pods started, not that the
+                # app answers. Ask the running container itself, from inside
+                # the cluster — the one check that needs no hostname, no
+                # certificate and no ingress controller. busybox wget ships in
+                # the alpine base image.
+                - bash: |
+                    set -euo pipefail
+                    kubectl -n "$(k8sNamespace)" exec \
+                      deploy/ksgaal-activity-map -- \
+                      wget -q -O - --timeout=10 \
+                      http://127.0.0.1:3000/api/health/ready
+                    echo
+                    echo "The application is serving inside the cluster."
+                  displayName: "Smoke test from inside the cluster"
+
+                # Two things we have never been able to verify from outside:
+                # whether this cluster runs an nginx ingress controller at all,
+                # and what address it would hand out. If ADDRESS below is empty,
+                # the Ingress is inert and no hostname the academy gives us will
+                # route until that is sorted. Reporting only — never fail the
+                # deploy on it.
+                - bash: |
+                    echo "--- Ingress ---"
+                    kubectl -n "$(k8sNamespace)" get ingress -o wide || true
+                    echo
+                    echo "--- Service ---"
+                    kubectl -n "$(k8sNamespace)" get svc -o wide || true
+                    echo
+                    echo "Reachability today: the host in the Ingress is a"
+                    echo "placeholder (dev.example.com) and the TLS secret"
+                    echo "ksgaal-dev-tls does not exist. The app is running but"
+                    echo "has no route in from a browser until the academy"
+                    echo "supplies the real development hostname and certificate."
+                  displayName: "Report how the app is exposed"
+                  condition: always()
