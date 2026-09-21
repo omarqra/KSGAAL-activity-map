@@ -207,6 +207,17 @@ stages:
           # --prefer-offline reuses the agent's ~/.npm cache across runs, which
           # persists because the agent is self-hosted. --maxsockets throttles
           # parallel downloads: the default of 15 is what pinned this machine.
+          # The control for the variable-group problem seen in the deploy
+          # stage. This is an ordinary job; if the group resolves here but
+          # not there, the difference is the job type, not the group.
+          # Single-quoted so bash never executes whatever is left behind, and
+          # neither value is a secret.
+          - bash: |
+              echo 'ordinary job, ADMIN_EMAIL = [$(ADMIN_EMAIL)]'
+              echo 'ordinary job, APP_ENV     = [$(APP_ENV)]'
+            displayName: "Variable group reachability (diagnostic)"
+            continueOnError: true
+
           - bash: |
               set -euo pipefail
               npm ci --prefer-offline --no-audit --no-fund --maxsockets 3
@@ -399,6 +410,17 @@ stages:
         environment: development
         pool:
           name: Default
+        # Bound here as well as at the root.
+        #
+        # Run 20260921.7 proved the group is authorised for this pipeline and
+        # holds saved values, yet every one of them arrived empty in this
+        # job's steps — including ADMIN_EMAIL, which is not a secret. The two
+        # stages that did see them are ordinary jobs; this is a deployment
+        # job, and on this Azure DevOps Server version the root-level binding
+        # does not appear to reach one. Declaring it at job scope costs
+        # nothing if the root binding was fine all along.
+        variables:
+          - group: aatw-dev
         strategy:
           runOnce:
             deploy:
