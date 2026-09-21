@@ -547,6 +547,13 @@ stages:
                       echo "Using the in-cluster database at ksgaal-postgres:5432/$DB"
                     else
                       URL="${EXTERNAL_DATABASE_URL:-}"
+                      # An unexpanded macro means "not defined". The two
+                      # characters are assembled rather than written, because
+                      # Azure DevOps would try to expand them here too.
+                      DOLLAR='$'
+                      case "$URL" in
+                        "${DOLLAR}("*")" ) URL="" ;;
+                      esac
                       if [ -n "$URL" ]; then
                         echo "Using the external database from DATABASE_URL."
                       else
@@ -574,19 +581,40 @@ stages:
                 - bash: |
                     set -euo pipefail
 
-                    # JWT_SECRET is the only hard requirement left: sessions
-                    # are signed with it, so without one nobody can stay
-                    # logged in and the failure would surface as a confusing
-                    # redirect loop rather than a clear error.
-                    #
-                    # This guard used to demand DATABASE_URL, APP_URL and both
-                    # NEXT_PUBLIC_* URLs too, and blocked a deploy on run
-                    # 20260920.2 for exactly that. It is wrong now: the
-                    # database is resolved by the step above, and the public
-                    # URLs are *meant* to be empty so the app follows whatever
-                    # origin serves it. Everything else degrades loudly
-                    # instead of stopping the deploy.
-                    if [ -z "${SECRET_JWT_SECRET:-}" ]; then
+                    # Azure DevOps leaves "$(NAME)" as literal text when NAME
+                    # is defined nowhere — it does not substitute an empty
+                    # string. The variable group currently holds four values,
+                    # so nine of the thirteen below would otherwise be written
+                    # into the Secret as the seven characters "$(APP_URL)" and
+                    # friends. The app's env validation rejects a non-URL
+                    # APP_URL and calls process.exit(1), so the pods would
+                    # crash-loop with no obvious cause. Treat an unexpanded
+                    # macro as absent, which is what it means.
+                    KEYS="DATABASE_URL JWT_SECRET APP_URL SMTP_HOST SMTP_USER
+                          SMTP_PASS EMAIL_FROM NEXT_PUBLIC_FRONTEND_URL
+                          NEXT_PUBLIC_BACKEND_URL NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+                          ADMIN_EMAIL ADMIN_PASSWORD ADMIN_NAME"
+
+                    # Assembled, not written: the two characters would be
+                    # expanded by Azure DevOps before bash ever saw them.
+                    DOLLAR='$'
+
+                    args=()
+                    declare -A clean
+                    for key in $KEYS; do
+                      name="SECRET_$key"
+                      val="${!name:-}"
+                      case "$val" in
+                        "${DOLLAR}("*")" ) val="" ;;
+                      esac
+                      clean[$key]="$val"
+                      args+=(--from-literal="$key=$val")
+                    done
+
+                    # JWT_SECRET is the only hard stop left: sessions are
+                    # signed with it, and its absence shows up as a redirect
+                    # loop rather than anything a reader could diagnose.
+                    if [ -z "${clean[JWT_SECRET]}" ]; then
                       echo "##[error] The image is built and pushed, but"
                       echo "##[error] JWT_SECRET is not set, so no one could"
                       echo "##[error] stay signed in."
@@ -596,31 +624,20 @@ stages:
                       exit 1
                     fi
 
-                    if [ -z "${SECRET_ADMIN_EMAIL:-}" ] || [ -z "${SECRET_ADMIN_PASSWORD:-}" ]; then
+                    # Everything else degrades. Say exactly what will not work
+                    # rather than failing the deploy.
+                    if [ -z "${clean[ADMIN_EMAIL]}" ] || [ -z "${clean[ADMIN_PASSWORD]}" ]; then
                       echo "##vso[task.logissue type=warning]ADMIN_EMAIL / ADMIN_PASSWORD are not set — no admin account will be created and the dashboard cannot be signed into."
                     fi
-                    if [ -z "${SECRET_SMTP_HOST:-}" ] || [ -z "${SECRET_SMTP_USER:-}" ]; then
+                    if [ -z "${clean[SMTP_HOST]}" ] || [ -z "${clean[SMTP_USER]}" ]; then
                       echo "##vso[task.logissue type=warning]SMTP is not configured — password reset and OTP emails will not be sent."
                     fi
-                    if [ -z "${SECRET_APP_URL:-}" ]; then
+                    if [ -z "${clean[APP_URL]}" ]; then
                       echo "##vso[task.logissue type=warning]APP_URL is not set — links inside outgoing emails will be relative and unusable."
                     fi
 
                     kubectl -n "$(k8sNamespace)" create secret generic \
-                      ksgaal-activity-map-secrets \
-                      --from-literal=DATABASE_URL="$SECRET_DATABASE_URL" \
-                      --from-literal=JWT_SECRET="$SECRET_JWT_SECRET" \
-                      --from-literal=APP_URL="$SECRET_APP_URL" \
-                      --from-literal=SMTP_HOST="$SECRET_SMTP_HOST" \
-                      --from-literal=SMTP_USER="$SECRET_SMTP_USER" \
-                      --from-literal=SMTP_PASS="$SECRET_SMTP_PASS" \
-                      --from-literal=EMAIL_FROM="$SECRET_EMAIL_FROM" \
-                      --from-literal=NEXT_PUBLIC_FRONTEND_URL="$SECRET_NEXT_PUBLIC_FRONTEND_URL" \
-                      --from-literal=NEXT_PUBLIC_BACKEND_URL="$SECRET_NEXT_PUBLIC_BACKEND_URL" \
-                      --from-literal=NEXT_PUBLIC_GOOGLE_MAPS_API_KEY="$SECRET_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY" \
-                      --from-literal=ADMIN_EMAIL="$SECRET_ADMIN_EMAIL" \
-                      --from-literal=ADMIN_PASSWORD="$SECRET_ADMIN_PASSWORD" \
-                      --from-literal=ADMIN_NAME="$SECRET_ADMIN_NAME" \
+                      ksgaal-activity-map-secrets "${args[@]}" \
                       --dry-run=client -o yaml | kubectl apply -f -
                   displayName: "Create/update Kubernetes Secret"
                   env:
