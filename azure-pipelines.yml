@@ -29,24 +29,37 @@
 # Library, and the pipeline turns the whole set into one Kubernetes Secret.
 # Static config that never varies by environment stays in k8s/base/configmap.yaml.
 #
-#   required — the deploy stops with a readable error if any is empty:
-#     DATABASE_URL              postgres://user:pass@host:5432/db
-#     JWT_SECRET                >= 32 random characters       [mark secret]
-#     APP_URL                   absolute; used for links in emails
-#     NEXT_PUBLIC_FRONTEND_URL  absolute; the browser calls this
-#     NEXT_PUBLIC_BACKEND_URL   absolute
+# Nothing here is strictly required any more — a deploy with an empty group
+# still completes, it just does less. That is deliberate: the academy has
+# supplied these piecemeal over weeks, and a pipeline that refuses to run
+# until the last one arrives cannot show them anything in the meantime.
 #
-#   optional — the app falls back to its own defaults, or skips the feature:
-#     SMTP_HOST, SMTP_USER, SMTP_PASS  [mark the last two secret]
-#     EMAIL_FROM
-#     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-#     ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME   [mark the password secret]
+#   JWT_SECRET      >= 32 random characters  [mark secret]. The one value
+#                   worth setting immediately — sessions depend on it.
 #
-# The NEXT_PUBLIC_* values are read twice: baked into the browser bundle when
-# the image is built, and read again by the server at runtime. Both come from
-# the same variable, so changing a URL means a rebuild, not just a redeploy.
+#   ADMIN_EMAIL, ADMIN_PASSWORD, ADMIN_NAME  [mark the password secret].
+#                   Without them no account is created and the dashboard
+#                   cannot be signed into.
 #
-# NEXT_PUBLIC_* are baked into the client bundle at image build time.
+#   DATABASE_URL    Ignored while deployInClusterPostgres is on. With it off
+#                   and this empty, the app runs degraded: empty globe,
+#                   migrations skipped, readiness still green.
+#
+#   SMTP_HOST, SMTP_USER, SMTP_PASS, EMAIL_FROM   [mark the credentials
+#                   secret]. Empty means email features are unavailable.
+#
+#   APP_URL         Only used for links inside emails, which are read outside
+#                   the cluster and so need an absolute address.
+#
+#   NEXT_PUBLIC_GOOGLE_MAPS_API_KEY   Empty disables the features needing it.
+#
+#   NEXT_PUBLIC_FRONTEND_URL, NEXT_PUBLIC_BACKEND_URL
+#                   Leave both empty. That is the supported setup, not a
+#                   shortcut: the browser calls the origin that served the
+#                   page and server components call loopback, so one image
+#                   works behind the temporary node port, a real ingress, or
+#                   localhost, and the hostname arriving needs no rebuild.
+#                   FRONTEND_URL only adds SEO canonical tags when set.
 # ---------------------------------------------------------------------------
 
 trigger:

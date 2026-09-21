@@ -7,8 +7,9 @@ The pipeline's service account (`azdevops-dev`) has full rights **inside the
 `dev` namespace only** and none at cluster scope — so nothing here creates a
 Namespace, and `dev` is assumed to already exist.
 
-PostgreSQL is treated as **external / managed** and supplied by the academy.
-There are no in-cluster database resources here.
+PostgreSQL runs **inside the cluster**, in the same namespace — see the
+Database section below. It can be pointed at an external database instead,
+and the app also starts with no database at all.
 
 Note for anyone debugging a stuck pull: the cluster's nodes have **no outbound
 internet**. A probe run on 2026-09-09 had them time out reaching `ghcr.io`, so
@@ -28,8 +29,10 @@ k8s/
 ├── overlays/
 │   └── dev/
 │       ├── kustomization.yaml   # namespace: dev (no Namespace resource)
-│       ├── configmap-patch.yaml # Dev URLs, APP_ENV=dev
-│       └── ingress-patch.yaml   # dev.example.com, TLS secret ksgaal-dev-tls
+│       ├── configmap-patch.yaml # APP_ENV=dev, placeholder APP_URL
+│       ├── ingress-patch.yaml   # dev.example.com, TLS secret ksgaal-dev-tls
+│       ├── postgres.yaml        # In-cluster database — applied by pipeline, not kustomize
+│       └── nodeport-service.yaml # Temporary way in — applied by pipeline, not kustomize
 ├── secret.example.yaml          # Documentation template only — NOT applied by kustomize
 └── README.md
 ```
@@ -149,25 +152,28 @@ both places, and a value updated in one and forgotten in the other is exactly
 how the browser ends up calling a hostname the server has never heard of. One
 place to set an environment is worth more than a tidier split.
 
-### Required — the deploy stops with a readable error if any is empty
+### The only one that really matters
 
 | Key | Notes |
 |---|---|
-| `DATABASE_URL` | `postgres://user:pass@host:5432/db` |
-| `JWT_SECRET` | ≥32 random characters — mark secret |
-| `APP_URL` | absolute; used for links in emails |
-| `NEXT_PUBLIC_FRONTEND_URL` | absolute; the browser calls this |
-| `NEXT_PUBLIC_BACKEND_URL` | absolute |
+| `JWT_SECRET` | ≥32 random characters — mark secret. Sessions depend on it. |
 
-### Optional — the app falls back to a default or skips the feature
+### Everything else degrades rather than failing
 
-`SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`,
-`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`,
-`ADMIN_NAME`. Mark the two SMTP credentials and the admin password secret.
+| Key | What happens if it is empty |
+|---|---|
+| `DATABASE_URL` | Ignored while `deployInClusterPostgres` is on. With it off and this empty, the app runs degraded: empty globe, migrations skipped. |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | No admin account is created and nobody can sign in to the dashboard. Mark the password secret. |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM` | Email features are unavailable. Mark the credentials secret. |
+| `APP_URL` | Only used for links inside emails, which are read outside the cluster and need an absolute address. |
+| `NEXT_PUBLIC_FRONTEND_URL` | SEO canonical tags are omitted. Leave it empty until there is a real public hostname. |
+| `NEXT_PUBLIC_BACKEND_URL` | Empty means same-origin, which is what you want. |
+| `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Map features that need a key are unavailable. |
 
-The `NEXT_PUBLIC_*` values are read twice: baked into the browser bundle when
-the image is built, and read again by the server at runtime. Changing one of
-those URLs therefore needs a rebuild, not just a redeploy.
+Leaving both `NEXT_PUBLIC_*` URLs empty is the supported setup, not a
+shortcut. The browser calls the origin that served the page and server
+components call loopback, so one image works behind the temporary node port,
+a real ingress, or localhost — with no rebuild when the hostname arrives.
 
 `secret.example.yaml` is **only a documentation template** — do not commit a
 real Secret manifest.
