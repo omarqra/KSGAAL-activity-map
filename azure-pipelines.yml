@@ -574,21 +574,36 @@ stages:
                 - bash: |
                     set -euo pipefail
 
-                    missing=""
-                    for v in DATABASE_URL JWT_SECRET APP_URL \
-                             NEXT_PUBLIC_FRONTEND_URL NEXT_PUBLIC_BACKEND_URL; do
-                      name="SECRET_$v"
-                      if [ -z "${!name:-}" ]; then
-                        missing="$missing $v"
-                      fi
-                    done
-                    if [ -n "$missing" ]; then
-                      echo "##[error] The image is built and pushed, but the app"
-                      echo "##[error] cannot start without these values:"
-                      for v in $missing; do echo "##[error]   - $v"; done
-                      echo "##[error] Set them in the aatw-dev variable group"
+                    # JWT_SECRET is the only hard requirement left: sessions
+                    # are signed with it, so without one nobody can stay
+                    # logged in and the failure would surface as a confusing
+                    # redirect loop rather than a clear error.
+                    #
+                    # This guard used to demand DATABASE_URL, APP_URL and both
+                    # NEXT_PUBLIC_* URLs too, and blocked a deploy on run
+                    # 20260920.2 for exactly that. It is wrong now: the
+                    # database is resolved by the step above, and the public
+                    # URLs are *meant* to be empty so the app follows whatever
+                    # origin serves it. Everything else degrades loudly
+                    # instead of stopping the deploy.
+                    if [ -z "${SECRET_JWT_SECRET:-}" ]; then
+                      echo "##[error] The image is built and pushed, but"
+                      echo "##[error] JWT_SECRET is not set, so no one could"
+                      echo "##[error] stay signed in."
+                      echo "##[error] Set it (32+ random characters, marked"
+                      echo "##[error] secret) in the aatw-dev variable group"
                       echo "##[error] under Pipelines > Library."
                       exit 1
+                    fi
+
+                    if [ -z "${SECRET_ADMIN_EMAIL:-}" ] || [ -z "${SECRET_ADMIN_PASSWORD:-}" ]; then
+                      echo "##vso[task.logissue type=warning]ADMIN_EMAIL / ADMIN_PASSWORD are not set — no admin account will be created and the dashboard cannot be signed into."
+                    fi
+                    if [ -z "${SECRET_SMTP_HOST:-}" ] || [ -z "${SECRET_SMTP_USER:-}" ]; then
+                      echo "##vso[task.logissue type=warning]SMTP is not configured — password reset and OTP emails will not be sent."
+                    fi
+                    if [ -z "${SECRET_APP_URL:-}" ]; then
+                      echo "##vso[task.logissue type=warning]APP_URL is not set — links inside outgoing emails will be relative and unusable."
                     fi
 
                     kubectl -n "$(k8sNamespace)" create secret generic \
