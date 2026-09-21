@@ -632,6 +632,16 @@ stages:
                     # from the same group, so if it reads NOT DEFINED then
                     # nothing from the group is reaching this step and the
                     # problem is the group binding, not any one value.
+                    # Read the same variable a second way. The env: block
+                    # above and inline macro expansion fail differently: if
+                    # the group is not bound at all the line below prints the
+                    # macro back unexpanded, whereas a bound group holding an
+                    # empty value prints empty brackets. Single-quoted so bash
+                    # never tries to execute what Azure DevOps leaves behind.
+                    # ADMIN_EMAIL is safe to print — it is not a secret.
+                    echo 'inline check, ADMIN_EMAIL = [$(ADMIN_EMAIL)]'
+                    echo 'inline check, APP_ENV     = [$(APP_ENV)]'
+
                     echo "--- aatw-dev readout (names and lengths only) ---"
                     for key in $KEYS; do
                       name="SECRET_$key"
