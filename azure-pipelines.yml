@@ -578,7 +578,10 @@ stages:
                       URL="postgresql://$USR:$PW@ksgaal-postgres:5432/$DB?schema=public"
                       echo "Using the in-cluster database at ksgaal-postgres:5432/$DB"
                     else
-                      URL="${EXTERNAL_DATABASE_URL:-}"
+                      URL=$(cat <<'AATW_DB_EOF'
+                    $(DATABASE_URL)
+                    AATW_DB_EOF
+                      )
                       # An unexpanded macro means "not defined". The two
                       # characters are assembled rather than written, because
                       # Azure DevOps would try to expand them here too.
@@ -594,9 +597,17 @@ stages:
                       fi
                     fi
                     echo "##vso[task.setvariable variable=resolvedDatabaseUrl;issecret=true]$URL"
+
+                    # A separate, non-secret flag for the migration steps.
+                    # They only need to know whether there is a database, and
+                    # reading a secret variable just to test it for emptiness
+                    # is more exposure than the question deserves.
+                    if [ -n "$URL" ]; then
+                      echo "##vso[task.setvariable variable=hasDatabase]true"
+                    else
+                      echo "##vso[task.setvariable variable=hasDatabase]false"
+                    fi
                   displayName: "Resolve DATABASE_URL"
-                  env:
-                    EXTERNAL_DATABASE_URL: $(DATABASE_URL)
 
                 # Every environment-specific value — secret or not — comes
                 # from the aatw-dev variable group and lands in this one
@@ -613,68 +624,71 @@ stages:
                 - bash: |
                     set -euo pipefail
 
-                    # Azure DevOps leaves "$(NAME)" as literal text when NAME
-                    # is defined nowhere — it does not substitute an empty
-                    # string. The variable group currently holds four values,
-                    # so nine of the thirteen below would otherwise be written
-                    # into the Secret as the seven characters "$(APP_URL)" and
-                    # friends. The app's env validation rejects a non-URL
-                    # APP_URL and calls process.exit(1), so the pods would
-                    # crash-loop with no obvious cause. Treat an unexpanded
-                    # macro as absent, which is what it means.
-                    KEYS="DATABASE_URL JWT_SECRET APP_URL SMTP_HOST SMTP_USER
-                          SMTP_PASS EMAIL_FROM NEXT_PUBLIC_FRONTEND_URL
-                          NEXT_PUBLIC_BACKEND_URL NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
-                          ADMIN_EMAIL ADMIN_PASSWORD ADMIN_NAME"
+                    # Values arrive by inline macro expansion, not through an
+                    # `env:` block.
+                    #
+                    # Run 20260921.9 settled why. Inside this deployment job
+                    # an `env:` mapping delivers nothing — every one of the
+                    # thirteen keys read back empty, including ADMIN_EMAIL,
+                    # which is not a secret, and DATABASE_URL, which does not
+                    # even come from the variable group but from the step
+                    # above. The same run proved inline expansion works here:
+                    # `$(ADMIN_EMAIL)` printed the address. Ordinary jobs are
+                    # unaffected; the Validate stage reads the group fine.
+                    #
+                    # The heredoc delimiter is quoted, so bash performs no
+                    # expansion on the block at all. That matters: Azure
+                    # DevOps substitutes the values before bash sees them, and
+                    # a password containing a quote would otherwise break the
+                    # script or worse. The one input this cannot survive is a
+                    # value containing a newline — none of these are
+                    # multi-line, and the readout below would show it.
+                    VALUES=$(cat <<'AATW_VALUES_EOF'
+                    DATABASE_URL=$(resolvedDatabaseUrl)
+                    JWT_SECRET=$(JWT_SECRET)
+                    APP_URL=$(APP_URL)
+                    SMTP_HOST=$(SMTP_HOST)
+                    SMTP_USER=$(SMTP_USER)
+                    SMTP_PASS=$(SMTP_PASS)
+                    EMAIL_FROM=$(EMAIL_FROM)
+                    NEXT_PUBLIC_FRONTEND_URL=$(NEXT_PUBLIC_FRONTEND_URL)
+                    NEXT_PUBLIC_BACKEND_URL=$(NEXT_PUBLIC_BACKEND_URL)
+                    NEXT_PUBLIC_GOOGLE_MAPS_API_KEY=$(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
+                    ADMIN_EMAIL=$(ADMIN_EMAIL)
+                    ADMIN_PASSWORD=$(ADMIN_PASSWORD)
+                    ADMIN_NAME=$(ADMIN_NAME)
+                    AATW_VALUES_EOF
+                    )
 
-                    # Assembled, not written: the two characters would be
-                    # expanded by Azure DevOps before bash ever saw them.
+                    # A macro Azure DevOps could not resolve is left in the
+                    # text verbatim; that means "not defined", not a value.
+                    # The two characters are assembled rather than written,
+                    # or this pattern would be substituted as well.
                     DOLLAR='$'
 
-                    args=()
                     declare -A clean
-                    for key in $KEYS; do
-                      name="SECRET_$key"
-                      val="${!name:-}"
+                    args=()
+                    while IFS= read -r line; do
+                      [ -n "$line" ] || continue
+                      key="${line%%=*}"
+                      val="${line#*=}"
                       case "$val" in
                         "${DOLLAR}("*")" ) val="" ;;
                       esac
                       clean[$key]="$val"
                       args+=(--from-literal="$key=$val")
-                    done
+                    done <<< "$VALUES"
 
-                    # Names and lengths only — never values. This exists to
-                    # separate two failures that look identical from the
-                    # outside: a variable the group does not define at all
-                    # (Azure DevOps leaves the macro unexpanded) and one it
-                    # defines as an empty string, which is what you get by
-                    # locking a field before typing into it.
-                    #
-                    # ADMIN_EMAIL is the control. It is non-secret and comes
-                    # from the same group, so if it reads NOT DEFINED then
-                    # nothing from the group is reaching this step and the
-                    # problem is the group binding, not any one value.
-                    # Read the same variable a second way. The env: block
-                    # above and inline macro expansion fail differently: if
-                    # the group is not bound at all the line below prints the
-                    # macro back unexpanded, whereas a bound group holding an
-                    # empty value prints empty brackets. Single-quoted so bash
-                    # never tries to execute what Azure DevOps leaves behind.
-                    # ADMIN_EMAIL is safe to print — it is not a secret.
-                    echo 'inline check, ADMIN_EMAIL = [$(ADMIN_EMAIL)]'
-                    echo 'inline check, APP_ENV     = [$(APP_ENV)]'
-
+                    # Names and lengths only — never values.
                     echo "--- aatw-dev readout (names and lengths only) ---"
-                    for key in $KEYS; do
-                      name="SECRET_$key"
-                      raw="${!name:-}"
-                      case "$raw" in
-                        "${DOLLAR}("*")" ) state="NOT DEFINED in the group" ;;
-                        "" )               state="defined but EMPTY" ;;
-                        * )                state="set, ${#raw} characters" ;;
-                      esac
+                    for key in "${!clean[@]}"; do
+                      if [ -z "${clean[$key]}" ]; then
+                        state="empty"
+                      else
+                        state="set, ${#clean[$key]} characters"
+                      fi
                       printf '  %-34s %s\n' "$key" "$state"
-                    done
+                    done | sort
                     echo "-------------------------------------------------"
 
                     # JWT_SECRET is the only hard stop left: sessions are
@@ -706,27 +720,13 @@ stages:
                       ksgaal-activity-map-secrets "${args[@]}" \
                       --dry-run=client -o yaml | kubectl apply -f -
                   displayName: "Create/update Kubernetes Secret"
-                  env:
-                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
-                    SECRET_JWT_SECRET: $(JWT_SECRET)
-                    SECRET_APP_URL: $(APP_URL)
-                    SECRET_SMTP_HOST: $(SMTP_HOST)
-                    SECRET_SMTP_USER: $(SMTP_USER)
-                    SECRET_SMTP_PASS: $(SMTP_PASS)
-                    SECRET_EMAIL_FROM: $(EMAIL_FROM)
-                    SECRET_NEXT_PUBLIC_FRONTEND_URL: $(NEXT_PUBLIC_FRONTEND_URL)
-                    SECRET_NEXT_PUBLIC_BACKEND_URL: $(NEXT_PUBLIC_BACKEND_URL)
-                    SECRET_NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: $(NEXT_PUBLIC_GOOGLE_MAPS_API_KEY)
-                    SECRET_ADMIN_EMAIL: $(ADMIN_EMAIL)
-                    SECRET_ADMIN_PASSWORD: $(ADMIN_PASSWORD)
-                    SECRET_ADMIN_NAME: $(ADMIN_NAME)
 
                 # A Job is immutable, so the previous one must go before the
                 # new one can be applied.
                 - bash: |
                     set -euo pipefail
-                    if [ -z "${SECRET_DATABASE_URL:-}" ]; then
-                      echo "No DATABASE_URL configured — skipping migrations."
+                    if [ "$(hasDatabase)" != "true" ]; then
+                      echo "No database configured — skipping migrations."
                       echo "The app deploys in degraded mode: the public globe"
                       echo "serves empty and the admin screens report the gap."
                       exit 0
@@ -735,13 +735,11 @@ stages:
                       ksgaal-activity-map-migrate \
                       --ignore-not-found=true
                   displayName: "Remove previous migration Job"
-                  env:
-                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
 
                 - bash: |
                     set -euo pipefail
-                    if [ -z "${SECRET_DATABASE_URL:-}" ]; then
-                      echo "No DATABASE_URL configured — skipping migrations."
+                    if [ "$(hasDatabase)" != "true" ]; then
+                      echo "No database configured — skipping migrations."
                       echo "The app deploys in degraded mode: the public globe"
                       echo "serves empty and the admin screens report the gap."
                       exit 0
@@ -749,15 +747,13 @@ stages:
                     kubectl apply -n "$(k8sNamespace)" \
                       -f "$(Build.SourcesDirectory)/k8s/base/migration-job.yaml"
                   displayName: "Apply migration Job"
-                  env:
-                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
 
                 # Migrations must succeed before the Deployment is touched,
                 # otherwise new pods would start against an old schema.
                 - bash: |
                     set -euo pipefail
-                    if [ -z "${SECRET_DATABASE_URL:-}" ]; then
-                      echo "No DATABASE_URL configured — skipping migrations."
+                    if [ "$(hasDatabase)" != "true" ]; then
+                      echo "No database configured — skipping migrations."
                       echo "The app deploys in degraded mode: the public globe"
                       echo "serves empty and the admin screens report the gap."
                       exit 0
@@ -772,8 +768,6 @@ stages:
                       exit 1
                     fi
                   displayName: "Wait for migration Job"
-                  env:
-                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
 
                 - bash: |
                     set -euo pipefail
