@@ -84,6 +84,20 @@ variables:
   - name: dockerRegistryServiceConnection
     value: "Docker_AATW"
 
+  # The academy confirmed the development database is to be created inside
+  # the cluster rather than provisioned separately. The pipeline mirrors the
+  # official PostgreSQL image through their registry (the nodes cannot reach
+  # Docker Hub) and runs it in `dev`. Set to "false" to point the app at an
+  # external database through the DATABASE_URL variable instead.
+  - name: deployInClusterPostgres
+    value: "true"
+  - name: postgresSourceImage
+    value: "postgres:16-alpine"
+  # Pushed as a tag of the one repository the academy allocated, rather than
+  # asking them for a second one.
+  - name: postgresImageTag
+    value: "postgres-16-alpine"
+
   # Temporary: expose the app on a node port so it can be opened from a
   # browser inside the academy's network before they supply a hostname and
   # certificate for the Ingress. Set to "false" and delete the Service once
@@ -324,6 +338,25 @@ stages:
               docker push "$IMAGE:latest"
             displayName: "Push image"
 
+          # Mirror PostgreSQL into the academy's registry.
+          #
+          # The cluster nodes have no outbound internet, so they cannot pull
+          # postgres:16-alpine from Docker Hub. This agent can, and it can
+          # push to their registry, so it acts as the bridge. Nothing about
+          # the image is modified — only its address.
+          - bash: |
+              set -euo pipefail
+              if [ "$(deployInClusterPostgres)" != "true" ]; then
+                echo "In-cluster PostgreSQL is off — skipping the mirror."
+                exit 0
+              fi
+              DST="$(registryHost)/$(registryNamespace)/$(imageRepository):$(postgresImageTag)"
+              docker pull "$(postgresSourceImage)"
+              docker tag "$(postgresSourceImage)" "$DST"
+              docker push "$DST"
+              echo "Mirrored $(postgresSourceImage) -> $DST"
+            displayName: "Mirror PostgreSQL into the academy's registry"
+
           # The agent is shared with the academy's other projects — do not
           # leave our credentials in its Docker config.
           - bash: docker logout "$(registryHost)"
@@ -408,6 +441,111 @@ stages:
                       "$(Build.SourcesDirectory)/k8s/overlays/dev/"
                   displayName: "Apply ConfigMap, Service, Ingress"
 
+                # ---- In-cluster PostgreSQL ------------------------------
+                #
+                # The credential is generated once and then left alone. Using
+                # `create ... | apply` here would mint a new password on every
+                # run while the database on disk still expects the old one,
+                # and the app would start failing authentication after the
+                # second deploy with nothing in the logs to explain it.
+                #
+                # Alphanumeric on purpose: the password goes into a
+                # postgresql:// URL, and percent-encoding it portably in shell
+                # is a trap not worth setting.
+                - bash: |
+                    set -euo pipefail
+                    if [ "$(deployInClusterPostgres)" != "true" ]; then
+                      echo "In-cluster PostgreSQL is off — skipping."
+                      exit 0
+                    fi
+
+                    if kubectl -n "$(k8sNamespace)" get secret \
+                         ksgaal-postgres-credentials >/dev/null 2>&1; then
+                      echo "Credentials already exist — leaving them untouched."
+                      exit 0
+                    fi
+
+                    PW=$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)
+                    kubectl -n "$(k8sNamespace)" create secret generic \
+                      ksgaal-postgres-credentials \
+                      --from-literal=POSTGRES_DB=ksgaal \
+                      --from-literal=POSTGRES_USER=ksgaal \
+                      --from-literal=POSTGRES_PASSWORD="$PW"
+                    echo "Generated new PostgreSQL credentials."
+                  displayName: "Ensure PostgreSQL credentials"
+
+                - bash: |
+                    set -euo pipefail
+                    if [ "$(deployInClusterPostgres)" != "true" ]; then
+                      echo "In-cluster PostgreSQL is off — skipping."
+                      exit 0
+                    fi
+
+                    MANIFEST="$(Build.SourcesDirectory)/k8s/overlays/dev/postgres.yaml"
+                    PG_IMAGE="$(registryHost)/$(registryNamespace)/$(imageRepository):$(postgresImageTag)"
+                    sed -i "s#POSTGRES_IMAGE_REF#$PG_IMAGE#g" "$MANIFEST"
+                    echo "PostgreSQL image: $PG_IMAGE"
+                    kubectl apply -n "$(k8sNamespace)" -f "$MANIFEST"
+
+                    # A Pending claim means the cluster has no default
+                    # StorageClass. We cannot check that directly — those are
+                    # cluster-scoped — so surface it as a readable failure
+                    # rather than a ten-minute rollout timeout.
+                    echo "Waiting for the volume claim to bind..."
+                    PHASE=""
+                    for i in $(seq 1 30); do
+                      PHASE=$(kubectl -n "$(k8sNamespace)" get pvc \
+                        ksgaal-postgres-data -o jsonpath='{.status.phase}' \
+                        2>/dev/null || echo "")
+                      [ "$PHASE" = "Bound" ] && break
+                      sleep 5
+                    done
+                    if [ "$PHASE" != "Bound" ]; then
+                      echo "##[error] The volume claim is still '$PHASE' after"
+                      echo "##[error] 150s. The cluster most likely has no"
+                      echo "##[error] default StorageClass — ask the academy"
+                      echo "##[error] which one to name in postgres.yaml."
+                      kubectl -n "$(k8sNamespace)" describe pvc ksgaal-postgres-data || true
+                      exit 1
+                    fi
+                    echo "Volume bound."
+
+                    if ! kubectl -n "$(k8sNamespace)" rollout status \
+                        deployment/ksgaal-postgres --timeout=300s; then
+                      echo "##[error] PostgreSQL did not become ready. Logs:"
+                      kubectl -n "$(k8sNamespace)" logs \
+                        deployment/ksgaal-postgres --tail=200 || true
+                      kubectl -n "$(k8sNamespace)" describe \
+                        deployment/ksgaal-postgres || true
+                      exit 1
+                    fi
+                  displayName: "Deploy PostgreSQL in the cluster"
+
+                # One place decides what the app connects to, so the Secret
+                # and the migration Job can never disagree about it.
+                - bash: |
+                    set -euo pipefail
+                    NS="$(k8sNamespace)"
+                    if [ "$(deployInClusterPostgres)" = "true" ]; then
+                      DB=$(kubectl -n "$NS" get secret ksgaal-postgres-credentials -o jsonpath='{.data.POSTGRES_DB}' | base64 -d)
+                      USR=$(kubectl -n "$NS" get secret ksgaal-postgres-credentials -o jsonpath='{.data.POSTGRES_USER}' | base64 -d)
+                      PW=$(kubectl -n "$NS" get secret ksgaal-postgres-credentials -o jsonpath='{.data.POSTGRES_PASSWORD}' | base64 -d)
+                      URL="postgresql://$USR:$PW@ksgaal-postgres:5432/$DB?schema=public"
+                      echo "Using the in-cluster database at ksgaal-postgres:5432/$DB"
+                    else
+                      URL="${EXTERNAL_DATABASE_URL:-}"
+                      if [ -n "$URL" ]; then
+                        echo "Using the external database from DATABASE_URL."
+                      else
+                        echo "No database configured — the app deploys in"
+                        echo "degraded mode and migrations are skipped."
+                      fi
+                    fi
+                    echo "##vso[task.setvariable variable=resolvedDatabaseUrl;issecret=true]$URL"
+                  displayName: "Resolve DATABASE_URL"
+                  env:
+                    EXTERNAL_DATABASE_URL: $(DATABASE_URL)
+
                 # Every environment-specific value — secret or not — comes
                 # from the aatw-dev variable group and lands in this one
                 # Secret. Non-secret keys (APP_URL, SMTP_HOST, EMAIL_FROM,
@@ -458,7 +596,7 @@ stages:
                       --dry-run=client -o yaml | kubectl apply -f -
                   displayName: "Create/update Kubernetes Secret"
                   env:
-                    SECRET_DATABASE_URL: $(DATABASE_URL)
+                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
                     SECRET_JWT_SECRET: $(JWT_SECRET)
                     SECRET_APP_URL: $(APP_URL)
                     SECRET_SMTP_HOST: $(SMTP_HOST)
@@ -487,7 +625,7 @@ stages:
                       --ignore-not-found=true
                   displayName: "Remove previous migration Job"
                   env:
-                    SECRET_DATABASE_URL: $(DATABASE_URL)
+                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
 
                 - bash: |
                     set -euo pipefail
@@ -501,7 +639,7 @@ stages:
                       -f "$(Build.SourcesDirectory)/k8s/base/migration-job.yaml"
                   displayName: "Apply migration Job"
                   env:
-                    SECRET_DATABASE_URL: $(DATABASE_URL)
+                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
 
                 # Migrations must succeed before the Deployment is touched,
                 # otherwise new pods would start against an old schema.
@@ -524,7 +662,7 @@ stages:
                     fi
                   displayName: "Wait for migration Job"
                   env:
-                    SECRET_DATABASE_URL: $(DATABASE_URL)
+                    SECRET_DATABASE_URL: $(resolvedDatabaseUrl)
 
                 - bash: |
                     set -euo pipefail

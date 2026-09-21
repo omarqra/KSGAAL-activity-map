@@ -56,6 +56,25 @@ RUN npx prisma generate
 
 RUN npm run build
 
+# Bundle the database bootstrap to plain JavaScript.
+#
+# The runner image has Node and the generated Prisma client but no TypeScript
+# loader, so `tsx prisma/...` cannot run there. Bundling here keeps a single
+# source of truth: the migration Job executes the same seedRoles/seedAdminUser
+# used locally, rather than a hand-copied duplicate that drifts.
+#
+# `@prisma/client` stays external because the runner gets it by explicit COPY.
+# bcryptjs is bundled in on purpose — Next.js compiles server dependencies
+# into its own chunks, so it is NOT present as a resolvable module in the
+# standalone output.
+#
+# esbuild comes in transitively with tsx. If that ever stops being true this
+# RUN fails the build outright, which is the right way to find out.
+RUN npx esbuild prisma/bootstrap.ts \
+      --bundle --platform=node --format=cjs --target=node20 \
+      --outfile=/app/prisma-dist/bootstrap.cjs \
+      --external:@prisma/client --external:.prisma
+
 
 # ---------- runner ----------
 FROM base AS runner
@@ -80,6 +99,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 #    generated client) → Next.js standalone copies only what its tracer sees,
 #    so we add Prisma explicitly to be safe.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma-dist ./prisma-dist
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma

@@ -91,6 +91,45 @@ To retire it once the Ingress works:
 kubectl -n dev delete svc ksgaal-activity-map-nodeport
 ```
 
+## Database
+
+The academy confirmed on 2026-09-21 that the development database is created
+inside the cluster rather than provisioned as a separate resource, so
+`overlays/dev/postgres.yaml` runs PostgreSQL in `dev`: one replica, a 5Gi
+`ReadWriteOnce` claim, and a ClusterIP Service named `ksgaal-postgres`.
+
+The image cannot come from Docker Hub — the nodes have no outbound internet.
+The build agent does, so the pipeline pulls `postgres:16-alpine` there and
+pushes it back into the academy's own registry as a tag of the one repository
+they allocated. The cluster then pulls it like any other image.
+
+Credentials are generated once, on the first deploy, into the Secret
+`ksgaal-postgres-credentials`, and never rewritten. Regenerating them on every
+run would leave the password on disk out of step with the one the app is
+given, and authentication would start failing on the second deploy with
+nothing in the logs to explain it. The pipeline reads that Secret back to
+compose `DATABASE_URL`, so the app Secret and the migration Job can never
+disagree about what to connect to.
+
+The claim deliberately names no StorageClass — those are cluster-scoped and
+unreadable from here, so naming one would be a guess. If it stays `Pending`,
+the cluster has no default and the academy needs to tell us which to use.
+
+Set `deployInClusterPostgres` to `false` in the pipeline to point the app at
+an external database through the `DATABASE_URL` variable instead. With
+neither, the app still deploys: migrations are skipped and it runs degraded.
+
+### Bootstrap
+
+The migration Job runs `prisma migrate deploy` and then
+`node prisma-dist/bootstrap.cjs`, which upserts the built-in roles and — when
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` are set — the admin account. Migrations
+alone leave a correct schema that nobody can sign in to.
+
+It is **not** `npm run db:deploy`. That script ends in `prisma db seed`, which
+deletes every activity, type, organization and country before importing, and
+must never run against a deployed database.
+
 ## Configuration — there is no `.env` here
 
 Nothing in this deployment reads a `.env` file. Configuration splits in two,

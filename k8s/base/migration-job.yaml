@@ -35,7 +35,21 @@ spec:
           # manifests silently kept pointing at the old one.
           image: IMAGE_REF
           imagePullPolicy: IfNotPresent
-          command: ["npx", "prisma", "migrate", "deploy"]
+          # Migrations create the tables; the bootstrap makes the product
+          # usable — it upserts the built-in roles and the admin account.
+          # Without it a fresh deploy has a correct schema and no way to sign
+          # in. Both steps are idempotent, so re-running is safe.
+          #
+          # Note this is NOT `npm run db:deploy`: that ends in `prisma db
+          # seed`, which deletes every activity, type, organization and
+          # country before importing. It must never run against a deployed
+          # database.
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              npx prisma migrate deploy
+              node prisma-dist/bootstrap.cjs
           envFrom:
             - configMapRef:
                 name: ksgaal-activity-map-config
