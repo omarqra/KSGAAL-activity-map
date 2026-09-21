@@ -621,6 +621,30 @@ stages:
                       args+=(--from-literal="$key=$val")
                     done
 
+                    # Names and lengths only — never values. This exists to
+                    # separate two failures that look identical from the
+                    # outside: a variable the group does not define at all
+                    # (Azure DevOps leaves the macro unexpanded) and one it
+                    # defines as an empty string, which is what you get by
+                    # locking a field before typing into it.
+                    #
+                    # ADMIN_EMAIL is the control. It is non-secret and comes
+                    # from the same group, so if it reads NOT DEFINED then
+                    # nothing from the group is reaching this step and the
+                    # problem is the group binding, not any one value.
+                    echo "--- aatw-dev readout (names and lengths only) ---"
+                    for key in $KEYS; do
+                      name="SECRET_$key"
+                      raw="${!name:-}"
+                      case "$raw" in
+                        "${DOLLAR}("*")" ) state="NOT DEFINED in the group" ;;
+                        "" )               state="defined but EMPTY" ;;
+                        * )                state="set, ${#raw} characters" ;;
+                      esac
+                      printf '  %-34s %s\n' "$key" "$state"
+                    done
+                    echo "-------------------------------------------------"
+
                     # JWT_SECRET is the only hard stop left: sessions are
                     # signed with it, and its absence shows up as a redirect
                     # loop rather than anything a reader could diagnose.
