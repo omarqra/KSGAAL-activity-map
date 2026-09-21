@@ -478,7 +478,17 @@ stages:
                       exit 0
                     fi
 
-                    PW=$(LC_ALL=C tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 32)
+                    # Read a bounded block and slice it in bash rather than
+                    # piping into `head -c 32`. `head` closes the pipe the
+                    # moment it has enough, `tr` dies of SIGPIPE, and under
+                    # `pipefail` that surfaces as exit 141 with no output at
+                    # all — which is exactly how run 20260921.3 failed.
+                    RANDOM_BYTES=$(head -c 4096 /dev/urandom | LC_ALL=C tr -dc 'A-Za-z0-9')
+                    PW="${RANDOM_BYTES:0:32}"
+                    if [ "${#PW}" -ne 32 ]; then
+                      echo "##[error] Could not generate a 32-character password."
+                      exit 1
+                    fi
                     kubectl -n "$(k8sNamespace)" create secret generic \
                       ksgaal-postgres-credentials \
                       --from-literal=POSTGRES_DB=ksgaal \
