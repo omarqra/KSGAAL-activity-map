@@ -893,7 +893,50 @@ stages:
                       echo "   http://$ip:$PORT"
                     done
                     echo
-                    echo " Plain HTTP, temporary, internal only. Retire this"
-                    echo " once the Ingress has a real hostname."
+                    echo " Plain HTTP — not https. A browser that upgrades"
+                    echo " the address will fail with a TLS error, because"
+                    echo " there is nothing listening for TLS on that port."
                     echo "=================================================="
                   displayName: "Expose on a node port and print the URL"
+
+                # Does the node port answer from outside the cluster at all?
+                #
+                # The build agent sits on the academy's network, so this
+                # splits a question that otherwise takes a day of guessing:
+                # a reply here and a failure on someone's laptop means the
+                # exposure works and the path from that laptop to the node is
+                # blocked; a failure here means the node itself is not
+                # accepting the connection, and no browser will either.
+                #
+                # Reporting only — the deploy is already done and successful
+                # by this point, and the app was proven serving in-cluster by
+                # the smoke test above.
+                - bash: |
+                    if [ "$(exposeNodePort)" != "true" ]; then
+                      echo "exposeNodePort is off — skipping."
+                      exit 0
+                    fi
+
+                    PORT=$(kubectl -n "$(k8sNamespace)" get svc \
+                      ksgaal-activity-map-nodeport \
+                      -o jsonpath='{.spec.ports[0].nodePort}' 2>/dev/null || echo "")
+                    IPS=$(kubectl -n "$(k8sNamespace)" get pods \
+                      -l app=ksgaal-activity-map \
+                      -o jsonpath='{range .items[*]}{.status.hostIP}{"\n"}{end}' \
+                      2>/dev/null | sort -u | grep -v '^$' || echo "")
+
+                    for ip in $IPS; do
+                      URL="http://$ip:$PORT/api/health/live"
+                      echo "--- $URL"
+                      if curl -fsS --max-time 8 "$URL"; then
+                        echo
+                        echo "    REACHABLE from the build agent."
+                      else
+                        echo "    NOT reachable from the build agent"
+                        echo "    (curl exit $?). The node is refusing or"
+                        echo "    dropping the connection — most likely a host"
+                        echo "    firewall in front of the 30000-32767 range."
+                      fi
+                    done
+                  displayName: "Can the node port be reached from outside? (diagnostic)"
+                  condition: always()
