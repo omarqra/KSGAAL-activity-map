@@ -26,20 +26,6 @@ function enforceHttps(req: NextRequest): NextResponse | null {
     return null;
   }
 
-  /* Explicit opt-out for a deployment that is not fronted by TLS at all.
-     The academy's development environment is reached on a node port over
-     plain HTTP while they arrange a hostname and a certificate, and this
-     redirect sent every page to an https URL with nothing listening on it —
-     the API answered because the matcher below does not cover /api, which
-     made it look like the app was half broken rather than redirecting.
-
-     Enforcement stays the default: this has to be turned off deliberately,
-     per environment, and the switch comes out again the moment the Ingress
-     serves TLS. */
-  if (process.env.HTTPS_REDIRECT === "off") {
-    return null;
-  }
-
   const host = req.headers.get("host") ?? "";
   const hostname = host.split(":")[0]?.toLowerCase() ?? "";
   if (
@@ -48,6 +34,26 @@ function enforceHttps(req: NextRequest): NextResponse | null {
     hostname === "0.0.0.0" ||
     hostname === "::1"
   ) {
+    return null;
+  }
+
+  /* Never redirect a request that arrived at a bare IP address.
+     Nobody holds a certificate for one, so https://<ip> cannot answer, and
+     sending a browser there turns a reachable app into a dead page. The
+     academy's development environment is exactly this case: it is served on
+     a node port at http://10.20.16.236:31306 while they arrange a hostname
+     and a certificate, and every page was redirecting to an https URL with
+     nothing listening behind it. /api kept working, because the matcher at
+     the bottom of this file does not cover it — which made the deployment
+     look half broken rather than merely redirected.
+
+     This is a request-time test on purpose. An environment variable cannot
+     do this job: Next.js inlines process.env into the middleware bundle at
+     build time, so a value set on the running container is never read. A
+     switch that silently does nothing is worse than no switch.
+
+     Real hostnames are unaffected and still forced to https. */
+  if (/^\d{1,3}(?:\.\d{1,3}){3}$/.test(hostname)) {
     return null;
   }
 
