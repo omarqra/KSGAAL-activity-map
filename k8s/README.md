@@ -129,6 +129,24 @@ The migration Job runs `prisma migrate deploy` and then
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set — the admin account. Migrations
 alone leave a correct schema that nobody can sign in to.
 
+#### Signing in while there is no mail server
+
+Sign-in asks for a one-time code sent by email. With no SMTP configured the
+code is still created and stored, but `sendEmail` only prints it to the server
+log, so the second factor can never be passed and nobody can get in at all.
+
+While `SMTP_USER` and `SMTP_PASS` are unset, the code is therefore fixed at
+`111111`.
+
+Two conditions guard that, not one. Configured mail always wins, so a working
+deployment can never fall back to a predictable code. And `APP_ENV=prod` is
+excluded outright: a production deployment missing its SMTP settings fails
+closed — nobody signs in — rather than quietly accepting a code an attacker
+would guess first. Every issued code is announced in the server log, so the
+state is visible rather than inferred.
+
+Setting the SMTP credentials restores real random codes with no other change.
+
 #### Recovering a forgotten admin password
 
 The account is created on the first deploy and then only its name and active
@@ -180,7 +198,7 @@ place to set an environment is worth more than a tidier split.
 | `DATABASE_URL` | Ignored while `deployInClusterPostgres` is on. With it off and this empty, the app runs degraded: empty globe, migrations skipped. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | No admin account is created and nobody can sign in to the dashboard. Mark the password secret. |
 | `ADMIN_PASSWORD_RESET` | Absent means the existing password is left alone — see below. |
-| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM` | Email features are unavailable. Mark the credentials secret. |
+| `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM` | Email features are unavailable, and sign-in uses a fixed one-time code — see below. Mark the credentials secret. |
 | `APP_URL` | Only used for links inside emails, which are read outside the cluster and need an absolute address. |
 | `NEXT_PUBLIC_FRONTEND_URL` | SEO canonical tags are omitted. Leave it empty until there is a real public hostname. |
 | `NEXT_PUBLIC_BACKEND_URL` | Empty means same-origin, which is what you want. |

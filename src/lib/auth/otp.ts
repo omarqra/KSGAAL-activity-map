@@ -2,6 +2,7 @@ import crypto from "crypto";
 
 import bcrypt from "bcryptjs";
 
+import { env } from "@/env/server";
 import { sendEmail } from "@/lib/email/send";
 import { otpEmail } from "@/lib/email/templates/otp";
 import { prisma } from "@/lib/prisma";
@@ -23,13 +24,43 @@ function generateNumericCode(length: number): string {
   return code;
 }
 
+/**
+ * A fixed code for deployments that cannot send mail, or `null` to generate a
+ * real one.
+ *
+ * Without SMTP the code is created, hashed and stored, and then goes nowhere —
+ * `sendEmail` prints it to the server log instead of delivering it. Anyone
+ * signing in is locked out at the second factor with no way to pass it. The
+ * academy's development environment has no mail server yet, so this makes that
+ * case usable rather than broken.
+ *
+ * Two conditions, not one. Mail being configured always wins: a working
+ * deployment can never fall back to a predictable code. And `prod` is excluded
+ * outright, so a production deployment that is missing its SMTP settings fails
+ * closed — nobody gets in — instead of quietly accepting a code an attacker
+ * could guess on the first try.
+ */
+function fixedCodeWhenMailUnavailable(): string | null {
+  if (env.SMTP_USER && env.SMTP_PASS) return null;
+  if (env.APP_ENV === "prod") return null;
+  return "1".repeat(OTP_LENGTH);
+}
+
 export type CreateOtpResult = {
   code: string;
   expiresAt: Date;
 };
 
 export async function createOtpForUser(userId: number): Promise<CreateOtpResult> {
-  const code = generateNumericCode(OTP_LENGTH);
+  const fixed = fixedCodeWhenMailUnavailable();
+  if (fixed) {
+    console.warn(
+      `[otp] No SMTP configured in APP_ENV=${env.APP_ENV} — issuing the fixed ` +
+        `development code instead of a random one. Configure SMTP_USER and ` +
+        `SMTP_PASS to restore real one-time codes.`
+    );
+  }
+  const code = fixed ?? generateNumericCode(OTP_LENGTH);
   const codeHash = await bcrypt.hash(code, BCRYPT_COST);
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MIN * 60 * 1000);
 
