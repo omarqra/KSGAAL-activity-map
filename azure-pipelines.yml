@@ -758,15 +758,51 @@ stages:
                       echo "serves empty and the admin screens report the gap."
                       exit 0
                     fi
-                    if ! kubectl -n "$(k8sNamespace)" wait \
-                        --for=condition=complete \
-                        --timeout=300s \
-                        job/ksgaal-activity-map-migrate; then
-                      echo "##[error] Migration Job failed or timed out. Logs:"
-                      kubectl -n "$(k8sNamespace)" logs \
-                        job/ksgaal-activity-map-migrate --tail=500 || true
-                      exit 1
+                    # Poll the Job's own condition instead of
+                    # `kubectl wait --for=condition=complete`. That only
+                    # watches for success, so a Job that gave up after its
+                    # retries still burned the full timeout — the run on
+                    # 2026-09-21 spent five minutes waiting for a container
+                    # that had already died three times in seconds.
+                    JOB="job/ksgaal-activity-map-migrate"
+                    NS="$(k8sNamespace)"
+                    STATE=""
+                    for _ in $(seq 1 60); do
+                      STATE=$(kubectl -n "$NS" get "$JOB" \
+                        -o 'jsonpath={.status.conditions[?(@.status=="True")].type}' \
+                        2>/dev/null || echo "")
+                      case "$STATE" in
+                        Complete|Failed) break ;;
+                      esac
+                      sleep 5
+                    done
+
+                    if [ "$STATE" = "Complete" ]; then
+                      echo "Migrations applied and the database bootstrapped."
+                      kubectl -n "$NS" logs "$JOB" --tail=100 || true
+                      exit 0
                     fi
+
+                    if [ "$STATE" = "Failed" ]; then
+                      echo "##[error] The migration Job failed. Container logs:"
+                    else
+                      echo "##[error] The migration Job did not finish within"
+                      echo "##[error] five minutes. Container logs so far:"
+                    fi
+
+                    # `logs job/...` picks one pod and says so. Walk every
+                    # attempt: a first pod that crashed on startup and a later
+                    # one that failed on the database say different things,
+                    # and only seeing both tells them apart.
+                    PODS=$(kubectl -n "$NS" get pods \
+                      -l job-name=ksgaal-activity-map-migrate \
+                      -o 'jsonpath={.items[*].metadata.name}' 2>/dev/null || echo "")
+                    for pod in $PODS; do
+                      echo "----- $pod -----"
+                      kubectl -n "$NS" logs "$pod" --tail=200 || true
+                    done
+                    kubectl -n "$NS" describe "$JOB" || true
+                    exit 1
                   displayName: "Wait for migration Job"
 
                 - bash: |

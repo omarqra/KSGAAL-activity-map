@@ -45,10 +45,24 @@ spec:
           # country before importing. It must never run against a deployed
           # database.
           command: ["sh", "-c"]
+          #
+          # `npx prisma` does not work in this image and the run on
+          # 2026-09-21 failed with `sh: prisma: not found`. The Dockerfile
+          # copies the `prisma` package but not `node_modules/.bin`, so the
+          # shim npx looks for is absent. Invoke the CLI entry point the
+          # package declares instead — the same workaround CLAUDE.md already
+          # records for this repo.
+          #
+          # `--schema` is explicit because prisma.config.ts is not in the
+          # runtime image: it is TypeScript and there is no loader here. With
+          # no config file the CLI falls back to the schema's own datasource,
+          # which reads DATABASE_URL from the environment — exactly what the
+          # Secret provides.
           args:
             - |
               set -e
-              npx prisma migrate deploy
+              node node_modules/prisma/build/index.js migrate deploy \
+                --schema prisma/schema.prisma
               node prisma-dist/bootstrap.cjs
           envFrom:
             - configMapRef:
