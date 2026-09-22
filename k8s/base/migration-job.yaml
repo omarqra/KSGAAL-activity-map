@@ -46,12 +46,13 @@ spec:
           # database.
           command: ["sh", "-c"]
           #
-          # `npx prisma` does not work in this image and the run on
-          # 2026-09-21 failed with `sh: prisma: not found`. The Dockerfile
-          # copies the `prisma` package but not `node_modules/.bin`, so the
-          # shim npx looks for is absent. Invoke the CLI entry point the
-          # package declares instead — the same workaround CLAUDE.md already
-          # records for this repo.
+          # The CLI lives under prisma-cli/, not in the app's node_modules.
+          # Two runs failed getting here: `npx prisma` found no shim because
+          # the image has no node_modules/.bin, and invoking the copied
+          # package directly died on `Cannot find module 'effect'` — the CLI
+          # loads @prisma/config, whose dependencies are not under the
+          # @prisma scope and so were never copied. The Dockerfile now
+          # installs the CLI's own resolved closure into prisma-cli/.
           #
           # `--schema` is explicit because prisma.config.ts is not in the
           # runtime image: it is TypeScript and there is no loader here. With
@@ -61,7 +62,7 @@ spec:
           args:
             - |
               set -e
-              node node_modules/prisma/build/index.js migrate deploy \
+              node prisma-cli/node_modules/prisma/build/index.js migrate deploy \
                 --schema prisma/schema.prisma
               node prisma-dist/bootstrap.cjs
           envFrom:

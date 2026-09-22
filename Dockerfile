@@ -76,6 +76,30 @@ RUN npx esbuild prisma/bootstrap.ts \
       --external:@prisma/client --external:.prisma
 
 
+# ---------- prisma CLI ----------
+# A standalone, correctly resolved Prisma CLI for the migration Job.
+#
+# Copying node_modules/prisma out of the build does not work: the CLI loads
+# @prisma/config, which pulls in effect, c12 and their own trees, none of
+# which live under the @prisma scope. The migration Job died three times on
+# `Cannot find module 'effect'`, and chasing the missing packages one by one
+# turned up four more before the next one appeared — that list is a property
+# of the CLI's internals and would rot on any upgrade.
+#
+# A clean install resolves the whole closure properly: 35 packages, ~131 MB,
+# against 1.4 GB for the full node_modules. The version is read from the lock
+# file rather than written here, so it cannot drift from what the app is
+# built against.
+FROM base AS prismacli
+WORKDIR /cli
+COPY package.json package-lock.json* ./
+RUN PRISMA_VERSION=$(node -p "require('./package-lock.json').packages['node_modules/prisma'].version") \
+ && echo "Installing prisma@${PRISMA_VERSION} (from package-lock.json)" \
+ && rm -f package.json package-lock.json \
+ && npm init -y > /dev/null \
+ && npm install --omit=dev --no-audit --no-fund "prisma@${PRISMA_VERSION}"
+
+
 # ---------- runner ----------
 FROM base AS runner
 ENV NODE_ENV=production
@@ -95,12 +119,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 # Prisma assets needed at runtime:
 #  - `prisma/schema.prisma` + `prisma/migrations/`  → so the same image can run
 #    the migrate Job via `npx prisma migrate deploy`.
-#  - `node_modules/prisma` (CLI) and `node_modules/@prisma` (engines +
-#    generated client) → Next.js standalone copies only what its tracer sees,
-#    so we add Prisma explicitly to be safe.
+#  - `prisma-cli/` → the standalone CLI from the stage above, used only by
+#    the migration Job.
+#  - `node_modules/@prisma` (engines + generated client) → Next.js standalone
+#    copies only what its tracer sees, so Prisma is added explicitly.
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma-dist ./prisma-dist
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules/prisma ./node_modules/prisma
+COPY --from=prismacli --chown=nextjs:nodejs /cli/node_modules ./prisma-cli/node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 
