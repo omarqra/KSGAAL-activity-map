@@ -766,14 +766,23 @@ stages:
                     # that had already died three times in seconds.
                     JOB="job/ksgaal-activity-map-migrate"
                     NS="$(k8sNamespace)"
+                    # Ask for each condition by type rather than listing
+                    # whichever are True. Kubernetes 1.31+ also sets
+                    # FailureTarget, so that query returns "FailureTarget
+                    # Failed" — two words, matching neither branch of a
+                    # case on the exact strings. Run 20260922.1 sat through
+                    # the full five minutes on a job that had given up after
+                    # forty seconds because of it.
+                    cond() {
+                      kubectl -n "$NS" get "$JOB" \
+                        -o "jsonpath={.status.conditions[?(@.type=='$1')].status}" \
+                        2>/dev/null || echo ""
+                    }
+
                     STATE=""
                     for _ in $(seq 1 60); do
-                      STATE=$(kubectl -n "$NS" get "$JOB" \
-                        -o 'jsonpath={.status.conditions[?(@.status=="True")].type}' \
-                        2>/dev/null || echo "")
-                      case "$STATE" in
-                        Complete|Failed) break ;;
-                      esac
+                      if [ "$(cond Complete)" = "True" ]; then STATE=Complete; break; fi
+                      if [ "$(cond Failed)" = "True" ]; then STATE=Failed; break; fi
                       sleep 5
                     done
 
