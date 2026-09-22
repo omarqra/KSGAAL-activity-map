@@ -41,6 +41,18 @@
 #                   Without them no account is created and the dashboard
 #                   cannot be signed into.
 #
+#   ADMIN_PASSWORD_RESET   "true" for one deploy to overwrite the existing
+#                   admin password with the current ADMIN_PASSWORD, then set
+#                   it back to "false". Anything other than "true", including
+#                   absent, leaves the password alone.
+#
+#                   The account is created on the first deploy and then left
+#                   untouched, so a forgotten password has no way back on its
+#                   own: this environment has no working mail, which rules out
+#                   the app's own reset-by-email. Leaving this on permanently
+#                   would silently undo any password the admin later set from
+#                   inside the app, which is why it is not the default.
+#
 #   DATABASE_URL    Ignored while deployInClusterPostgres is on. With it off
 #                   and this empty, the app runs degraded: empty globe,
 #                   migrations skipped, readiness still green.
@@ -657,6 +669,7 @@ stages:
                     ADMIN_EMAIL=$(ADMIN_EMAIL)
                     ADMIN_PASSWORD=$(ADMIN_PASSWORD)
                     ADMIN_NAME=$(ADMIN_NAME)
+                    ADMIN_PASSWORD_RESET=$(ADMIN_PASSWORD_RESET)
                     AATW_VALUES_EOF
                     )
 

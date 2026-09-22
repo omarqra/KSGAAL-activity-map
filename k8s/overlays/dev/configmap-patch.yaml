@@ -14,6 +14,10 @@ metadata:
 # academy supplies the development hostname.
 data:
   APP_ENV: "dev"
+  # Off only while this environment is reached over plain HTTP on a node
+  # port. Delete this line the moment the Ingress terminates TLS — leaving
+  # it behind would keep the app answering unencrypted on a real hostname.
+  HTTPS_REDIRECT: "off"
   SMTP_HOST: "smtp.example.com"
   EMAIL_FROM: "KSGAAL Dev <no-reply@dev.example.com>"
   APP_URL: "https://dev.example.com"

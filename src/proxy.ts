@@ -26,6 +26,20 @@ function enforceHttps(req: NextRequest): NextResponse | null {
     return null;
   }
 
+  /* Explicit opt-out for a deployment that is not fronted by TLS at all.
+     The academy's development environment is reached on a node port over
+     plain HTTP while they arrange a hostname and a certificate, and this
+     redirect sent every page to an https URL with nothing listening on it —
+     the API answered because the matcher below does not cover /api, which
+     made it look like the app was half broken rather than redirecting.
+
+     Enforcement stays the default: this has to be turned off deliberately,
+     per environment, and the switch comes out again the moment the Ingress
+     serves TLS. */
+  if (process.env.HTTPS_REDIRECT === "off") {
+    return null;
+  }
+
   const host = req.headers.get("host") ?? "";
   const hostname = host.split(":")[0]?.toLowerCase() ?? "";
   if (

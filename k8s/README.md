@@ -129,6 +129,21 @@ The migration Job runs `prisma migrate deploy` and then
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set — the admin account. Migrations
 alone leave a correct schema that nobody can sign in to.
 
+#### Recovering a forgotten admin password
+
+The account is created on the first deploy and then only its name and active
+flag are touched, so the password cannot drift back on its own — and this
+environment has no working mail, which rules out the app's own
+reset-by-email.
+
+To reset it, set `ADMIN_PASSWORD` to the new value, set
+`ADMIN_PASSWORD_RESET` to `true`, deploy once, then set it back to `false`.
+Anything other than `true`, including absent, leaves the password untouched.
+
+Leaving it on is the thing to avoid: every deploy would then overwrite
+whatever password the admin had set from inside the app, and nobody would
+connect the two events.
+
 It is **not** `npm run db:deploy`. That script ends in `prisma db seed`, which
 deletes every activity, type, organization and country before importing, and
 must never run against a deployed database.
@@ -164,6 +179,7 @@ place to set an environment is worth more than a tidier split.
 |---|---|
 | `DATABASE_URL` | Ignored while `deployInClusterPostgres` is on. With it off and this empty, the app runs degraded: empty globe, migrations skipped. |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` | No admin account is created and nobody can sign in to the dashboard. Mark the password secret. |
+| `ADMIN_PASSWORD_RESET` | Absent means the existing password is left alone — see below. |
 | `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS` / `EMAIL_FROM` | Email features are unavailable. Mark the credentials secret. |
 | `APP_URL` | Only used for links inside emails, which are read outside the cluster and need an absolute address. |
 | `NEXT_PUBLIC_FRONTEND_URL` | SEO canonical tags are omitted. Leave it empty until there is a real public hostname. |

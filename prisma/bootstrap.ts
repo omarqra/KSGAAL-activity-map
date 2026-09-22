@@ -27,7 +27,19 @@ async function main(): Promise<void> {
        so doing it in this order attaches the new account in the same pass
        instead of leaving it role-less until the next deploy. */
     if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-      await seedAdminUser(prisma);
+      /* Opt-in per deploy. The account is created on the first run and left
+         alone afterwards, so a forgotten password would otherwise be
+         unrecoverable here: this deployment has no working mail, which rules
+         out the reset-by-email path the app itself offers. */
+      const resetPassword =
+        (process.env.ADMIN_PASSWORD_RESET ?? "").toLowerCase() === "true";
+      if (resetPassword) {
+        console.log(
+          "ADMIN_PASSWORD_RESET is on — the existing admin password will be " +
+            "overwritten with the current value of ADMIN_PASSWORD."
+        );
+      }
+      await seedAdminUser(prisma, { resetPassword });
     } else {
       console.log(
         "ADMIN_EMAIL / ADMIN_PASSWORD are not set — no admin account will be " +
