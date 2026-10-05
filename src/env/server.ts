@@ -28,6 +28,11 @@ export const env = createEnv({
       .string()
       .default("مجمع الملك سلمان العالمي للغة العربية <no-reply@console.local>"),
     APP_URL: z.string().url().default("http://localhost:3000"),
+    /* Whether auth cookies carry the Secure attribute. Normally nothing needs
+       to set this: the request's own x-forwarded-proto decides, and APP_URL's
+       scheme is the fallback when there is no proxy to send that header. It
+       exists for the case where neither is trustworthy. */
+    COOKIE_SECURE: z.enum(["true", "false"]).optional(),
   },
   onValidationError: (issues) => {
     console.error("❌ Invalid environment variables:", issues);
