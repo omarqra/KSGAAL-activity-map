@@ -54,16 +54,3 @@ export async function seedAdminUser(
   );
   return user;
 }
-
-// Standalone entrypoint (npm run db:seed:user)
-if (require.main === module) {
-  const prisma = new PrismaClient();
-  seedAdminUser(prisma)
-    .catch((e) => {
-      console.error(e);
-      process.exit(1);
-    })
-    .finally(async () => {
-      await prisma.$disconnect();
-    });
-}

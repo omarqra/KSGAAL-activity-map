@@ -129,6 +129,23 @@ The migration Job runs `prisma migrate deploy` and then
 `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set — the admin account. Migrations
 alone leave a correct schema that nobody can sign in to.
 
+It also imports the globe's reference data — activity types, countries,
+organizations and activities — from the JSON file bundled into the image
+(182 activities, 50 countries, 13 organizations, 5 types). Otherwise the
+deployment comes up healthy and completely blank.
+
+That import is guarded by a row count, so it happens on the first deploy and
+never again: a redeploy cannot discard anything that was edited through the
+dashboard. `npm run db:seed`, which clears the tables first, is for local
+development and is never what runs here.
+
+#### Replacing the data that is already there
+
+Set `DATA_REIMPORT=true` in the `aatw-dev` variable group for one deploy, then
+put it back to `false`. That clears the four tables and imports the file again.
+Anything entered or edited through the dashboard is lost — this is for pushing
+a corrected data file out, not for routine deploys.
+
 #### Signing in while there is no mail server
 
 Sign-in asks for a one-time code sent by email. With no SMTP configured the

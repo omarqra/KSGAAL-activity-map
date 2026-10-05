@@ -18,7 +18,7 @@
     "prisma:studio": "prisma studio",
     "db:backup": "node scripts/backup-db.mjs",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:user": "tsx prisma/seed-user.ts",
+    "db:seed:user": "tsx prisma/seed-user-cli.ts",
     "prepare": "husky",
     "audit": "npm audit --audit-level=high",
     "audit:fix": "npm audit fix",

@@ -41,6 +41,17 @@
 #                   Without them no account is created and the dashboard
 #                   cannot be signed into.
 #
+#   DATA_REIMPORT   "true" for one deploy to throw away the globe's data
+#                   (activity types, countries, organizations, activities) and
+#                   import it again from the file shipped inside the image,
+#                   then set it back to "false". Anything other than "true",
+#                   including absent, is safe.
+#
+#                   It is not needed to fill an empty database: the bootstrap
+#                   imports the data by itself when it finds none. This is only
+#                   for replacing data that is already there, and it discards
+#                   whatever was edited through the dashboard.
+#
 #   ADMIN_PASSWORD_RESET   "true" for one deploy to overwrite the existing
 #                   admin password with the current ADMIN_PASSWORD, then set
 #                   it back to "false". Anything other than "true", including
@@ -670,6 +681,7 @@ stages:
                     ADMIN_PASSWORD=$(ADMIN_PASSWORD)
                     ADMIN_NAME=$(ADMIN_NAME)
                     ADMIN_PASSWORD_RESET=$(ADMIN_PASSWORD_RESET)
+                    DATA_REIMPORT=$(DATA_REIMPORT)
                     AATW_VALUES_EOF
                     )
 

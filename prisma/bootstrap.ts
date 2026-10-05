@@ -6,10 +6,16 @@
  * unusable, because there is no role to authorise anything and no account to
  * sign in with.
  *
+ * It also loads the globe's reference data — activity types, countries,
+ * organizations, activities — but only into an empty database. Without that
+ * the deployment comes up correct and blank: no globe, no dashboard rows.
+ *
  * Note what this is NOT: `npm run db:seed` wipes every activity, type,
  * organization and country before importing. That belongs to local
- * development and must never run against a deployed database. This file only
- * ever upserts.
+ * development and must never run against a deployed database. Here the import
+ * is guarded by a count, so a second deploy cannot overwrite anything that was
+ * edited through the dashboard. Set DATA_REIMPORT=true for one deploy to force
+ * a clear-and-reimport, the same way ADMIN_PASSWORD_RESET works.
  *
  * Bundled to plain JavaScript at image build time (see the Dockerfile) because
  * the runtime image has no TypeScript loader — only Node and the generated
@@ -17,6 +23,11 @@
  */
 import { PrismaClient } from "@prisma/client";
 
+import {
+  clearGlobeData,
+  importGlobeData,
+  isGlobeDataEmpty,
+} from "./import-data";
 import { seedRoles } from "./seed-roles-fn";
 import { seedAdminUser } from "./seed-user";
 
@@ -47,6 +58,30 @@ async function main(): Promise<void> {
       );
     }
     await seedRoles(prisma);
+
+    /* The globe's reference data. Guarded on emptiness so redeploys never
+       discard dashboard edits; DATA_REIMPORT=true overrides for one run. */
+    const reimport = (process.env.DATA_REIMPORT ?? "").toLowerCase() === "true";
+    if (reimport) {
+      console.log(
+        "DATA_REIMPORT is on — clearing the globe data and importing it again " +
+          "from the file shipped in this image. Anything edited through the " +
+          "dashboard will be lost."
+      );
+      await clearGlobeData(prisma);
+      const count = await importGlobeData(prisma);
+      console.log(`→ reimported ${count} activities`);
+    } else if (await isGlobeDataEmpty(prisma)) {
+      console.log("→ database has no globe data yet — importing it");
+      const count = await importGlobeData(prisma);
+      console.log(`→ imported ${count} activities`);
+    } else {
+      console.log(
+        "→ globe data is already present — leaving it untouched (set " +
+          "DATA_REIMPORT=true to replace it)"
+      );
+    }
+
     console.log("✓ bootstrap complete");
   } finally {
     await prisma.$disconnect();
